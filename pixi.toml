@@ -1,0 +1,58 @@
+[workspace]
+name = "thunderquakes"
+version = "0.1.0"
+description = "Seismoacoustic detection of thunderquakes to complete lightning-strike catalogs (OK, PNW, AK)"
+authors = ["Denolle Research Group <mdenolle@uw.edu>"]
+channels = ["conda-forge", "pytorch"]
+platforms = ["osx-arm64", "linux-64", "osx-64"]
+
+[dependencies]
+python = ">=3.11,<3.13"
+numpy = "*"
+scipy = "*"
+pandas = "*"
+matplotlib = "*"
+seaborn = "*"
+h5py = "*"
+obspy = ">=1.4"
+scikit-learn = "*"
+xarray = "*"
+netcdf4 = "*"
+requests = "*"
+tqdm = "*"
+pyyaml = "*"
+jupyterlab = "*"
+
+[pypi-dependencies]
+thunderquakes = { path = ".", editable = true }
+s3fs = "*"          # GOES-GLM open data on AWS
+python-dateutil = "*"
+
+[tasks]
+test = "pytest -q"
+lint = "ruff check src tests"
+fmt = "ruff format src tests"
+report = "quarto render report/manuscript.qmd"
+
+# --- ML feature: heavier deps kept out of the default env ---
+[feature.ml.dependencies]
+pytorch = ">=2.1"
+torchvision = "*"
+tensorboard = "*"
+
+# --- Dev tooling ---
+[feature.dev.dependencies]
+pytest = "*"
+pytest-cov = "*"
+ruff = "*"
+
+# --- Reporting ---
+[feature.report.dependencies]
+quarto = "*"
+
+[environments]
+default = { solve-group = "default" }
+ml = { features = ["ml"], solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+report = { features = ["report"], solve-group = "default" }
+all = { features = ["ml", "dev", "report"], solve-group = "default" }

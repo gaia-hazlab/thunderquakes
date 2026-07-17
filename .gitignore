@@ -1,0 +1,28 @@
+# pixi / conda
+.pixi/
+*.egg-info/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# data & artifacts (provenance in data/README.md, never commit raw data)
+data/PNWML/
+data/*.hdf5
+data/*.csv
+data/*.nc
+data/*.png
+*.pt
+*.ckpt
+runs/
+outputs/
+wandb/
+
+# report build
+report/*_files/
+report/*.html
+report/*.pdf
+
+# env
+.env
+.venv/
+config.yaml

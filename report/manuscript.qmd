@@ -1,0 +1,32 @@
+---
+title: "Seismoacoustic detection of thunderquakes to complete lightning-strike catalogs"
+authors:
+  - name: "Denolle Research Group"
+format:
+  html:
+    toc: true
+    code-fold: true
+execute:
+  echo: false
+  cache: true
+bibliography: references.bib
+---
+
+# Introduction
+Why (catalog incompleteness, esp. remote terrain / high latitude) and how
+(seismoacoustic coupling of thunder). <!-- WS5 -->
+
+# Data
+PNWML labeled classes (WS1); station + infrasound inventory (WS2); open lightning
+catalogs GLM/ALDN/WWLLN (WS3).
+
+# Method
+Spectrogram CNN; seismic-only (Model A) and seismic+infrasound (Model B);
+MC-dropout + deep-ensemble uncertainty with calibration (WS4).
+
+# Results
+Per-class signal characterization; PNW→OK generalization; completeness gain vs
+open lightning catalogs (WS4).
+
+# Discussion
+Limitations (open-catalog detection efficiency, domain shift, Alaska coverage).

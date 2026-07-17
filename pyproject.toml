@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "thunderquakes"
+version = "0.1.0"
+description = "Seismoacoustic detection of thunderquakes to complete lightning-strike catalogs (OK, PNW, AK)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Denolle Research Group", email = "mdenolle@uw.edu" }]
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "h5py",
+    "obspy>=1.4",
+    "scikit-learn",
+    "xarray",
+    "requests",
+    "tqdm",
+    "pyyaml",
+    "python-dateutil",
+]
+
+[project.optional-dependencies]
+ml = ["torch>=2.1", "torchvision", "tensorboard"]
+dev = ["pytest", "pytest-cov", "ruff"]
+
+[project.scripts]
+thunderquakes = "thunderquakes.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/thunderquakes"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
