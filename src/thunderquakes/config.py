@@ -93,4 +93,25 @@ REGIONS = {
 TARGET_SAMPLING_RATE = 100.0  # Hz, seismic
 WINDOW_SECONDS = 30.0
 SEISMIC_BAND = (1.0, 20.0)  # Hz
-INFRASOUND_CHANNELS = ("BDF", "HDF", "BDH", "HDH")  # microphone channels to look for
+
+# Infrasound / pressure channels use SEED instrument code 'D' (2nd char of the
+# channel code). Only high-rate bands resolve ~1-20 Hz thunder acoustics:
+#   band codes F,G,D,C = very high rate; H = >=80 Hz; B = 10-80 Hz; E = short-period.
+# Low-rate pressure (band L = 1 sps: LDF/LDM/LDO) is meteorological and too coarse
+# for thunder claps, so it is recorded but NOT flagged as usable infrasound.
+PRESSURE_INSTRUMENT_CODE = "D"
+ACOUSTIC_BAND_CODES = frozenset("FGDCHBE")
+
+
+def is_acoustic_channel(channel: str) -> bool:
+    """True if a channel is a pressure sensor at a rate usable for thunder acoustics."""
+    return (
+        len(channel) >= 2
+        and channel[1] == PRESSURE_INSTRUMENT_CODE
+        and channel[0] in ACOUSTIC_BAND_CODES
+    )
+
+
+def is_pressure_channel(channel: str) -> bool:
+    """True for any pressure/infrasound sensor (incl. low-rate met pressure)."""
+    return len(channel) >= 2 and channel[1] == PRESSURE_INSTRUMENT_CODE
