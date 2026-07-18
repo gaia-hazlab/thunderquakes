@@ -50,9 +50,11 @@ def plot_map(summary, region: str, out_path: Path) -> None:
         label=f"seismic + infrasound (n={len(seismoacoustic)})", zorder=3,
         edgecolors="k", linewidths=0.4,
     )
-    for r in seismoacoustic.itertuples():
-        ax.annotate(f"{r.network}.{r.station}", (r.longitude, r.latitude),
-                    fontsize=5, color="darkred", xytext=(2, 2), textcoords="offset points")
+    # Only label seismoacoustic sites when sparse enough to stay readable.
+    if len(seismoacoustic) <= 25:
+        for r in seismoacoustic.itertuples():
+            ax.annotate(f"{r.network}.{r.station}", (r.longitude, r.latitude),
+                        fontsize=5, color="darkred", xytext=(2, 2), textcoords="offset points")
     ax.set(
         xlabel="Longitude", ylabel="Latitude", xlim=(lon0, lon1), ylim=(lat0, lat1),
         title=f"{region} station coverage — seismic + infrasound (WS2)\n"
