@@ -45,6 +45,24 @@ entries short: what was asked, what was accepted/rejected, and why.
 - `scripts/fetch_glm.py` caches a region+window catalog to outputs/ (CSV).
 - Verification: 18 tests pass (no-network parse/filter tests), ruff clean.
 
+## 2026-07-18 — WS1 #3 PNWML signal characterization (Claude, Opus 4.8)
+- Local PNWML waveforms were incomplete (.part files); metadata CSVs complete.
+  **Decision:** reconstruct labelled waveforms from FDSN using the metadata
+  (station/time/channel) rather than depend on the multi-GB HDF5 — fully
+  reproducible, reuses `data.waveforms.fetch_window`. Verified 15000 samp @ 100 Hz
+  matches the PNWML 150 s window; 596/596 traces fetched successfully.
+- Added pure, tested signal-feature functions to `features/characterize.py`
+  (dominant freq, spectral centroid/bandwidth/flatness, envelope duration,
+  band-energy ratios, kurtosis) + `scripts/characterize_pnwml.py`.
+- Classes characterized: thunder, sonic boom, surface event, noise (comcat
+  earthquake/explosion deferred — metadata not local).
+- Result: thunder has the highest spectral centroid (~10 Hz) and uniquely peaks
+  energy in 10-20 Hz; surface events are lower-frequency; noise is flat/long/
+  low-kurtosis. Nearest confuser is sonic boom (also acoustic-coupled) →
+  motivates the CNN + infrasound branch. Noted a ~22 Hz sensor/decimation notch
+  on CC/BH channels (artifact, not source physics).
+- Verification: 22 tests pass, ruff clean, figures + summary reviewed.
+
 ## Template
 ### YYYY-MM-DD — <topic> (<model>)
 - Prompt/intent:

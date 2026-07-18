@@ -34,7 +34,10 @@ def main(argv: list[str] | None = None) -> int:
         print(inv.to_string(index=False))
         return 0
     if args.command == "characterize":
-        raise SystemExit("WS1 not implemented yet — see ROADMAP.md (Signal characterization).")
+        raise SystemExit(
+            "Run scripts/characterize_pnwml.py --metadata-dir <pnwml> (WS1). "
+            "See catalogs/pnwml_class_summary.csv + docs/figures/pnwml_*.png."
+        )
     if args.command == "train":
         raise SystemExit("WS4 not yet implemented — see ROADMAP.md / issue for 'CNN training'.")
     return 0

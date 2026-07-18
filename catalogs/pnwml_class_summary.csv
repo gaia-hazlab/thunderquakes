@@ -1,0 +1,5 @@
+source_type,dominant_freq_hz,spectral_centroid_hz,spectral_bandwidth_hz,spectral_flatness,duration_80pct_s,kurtosis,energy_1_5hz,energy_5_10hz,energy_10_20hz,energy_20_45hz,n
+noise,4.99,9.373,6.362,0.067,111.675,0.306,0.305,0.139,0.17,0.082,150
+sonic boom,5.327,8.367,4.47,0.029,42.75,32.459,0.228,0.298,0.243,0.016,150
+surface event,4.347,6.278,3.349,0.016,24.78,16.467,0.444,0.303,0.099,0.006,150
+thunder,6.446,10.228,4.957,0.044,34.095,27.908,0.161,0.328,0.411,0.032,146
