@@ -68,26 +68,38 @@ def pnwml_paths(root: Path | str | None = None) -> PNWMLPaths:
 
 # --- Region definitions (bounding boxes + FDSN networks) ---------------------
 # Used by stations/ inventory and lightning/ catalog queries.
+# ``seismic_networks`` live in the standard fdsnws-station catalog (IRIS/EarthScope).
+# ``ph5_networks`` are dense nodal / assembled datasets served from the separate
+# IRIS PH5 archive (IRISPH5 client) — e.g. the 2016 Oklahoma experiments:
+#   2A = LASSO (Large-n Seismic Survey in Oklahoma, ~2000 nodes, no infrasound)
+#   YW = IRIS Community Wavefield Experiment (nodes + broadbands + HDF infrasound)
 REGIONS = {
     "OK": {
         "priority": 1,
         "bbox": (33.5, 37.2, -103.1, -94.4),  # (lat_min, lat_max, lon_min, lon_max)
         "seismic_networks": ["OK", "GS", "N4", "TA"],
-        "notes": "Densely instrumented (induced seismicity). TA/N4 carry BDF infrasound.",
+        "ph5_networks": ["2A", "YW"],
+        "notes": "Densely instrumented (induced seismicity). TA/N4 carry BDF infrasound; "
+        "2016 LASSO (2A) + Community Wavefield (YW) add dense nodal + YW infrasound.",
     },
     "PNW": {
         "priority": 2,
         "bbox": (41.0, 49.5, -125.0, -116.5),
         "seismic_networks": ["UW", "UO", "CC"],
+        "ph5_networks": [],
         "notes": "PNSN. Home of the PNWML analyst-labeled 'thunder' class.",
     },
     "AK": {
         "priority": 3,
         "bbox": (51.0, 71.5, -170.0, -130.0),
         "seismic_networks": ["AK", "TA", "AV"],
+        "ph5_networks": [],
         "notes": "Alaska TA (2014-2021) carried BDF infrasound. GLM coverage is poor here.",
     },
 }
+
+# fdsnws-availability extent service (actual archived-data extents & gappiness).
+AVAILABILITY_EXTENT_URL = "http://service.iris.edu/fdsnws/availability/1/extent"
 
 # --- Signal / preprocessing defaults (see WS1 characterization) --------------
 TARGET_SAMPLING_RATE = 100.0  # Hz, seismic

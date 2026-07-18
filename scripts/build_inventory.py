@@ -22,19 +22,27 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from thunderquakes.config import REGIONS, REPO_ROOT  # noqa: E402
-from thunderquakes.stations import build_inventory, station_summary  # noqa: E402
+from thunderquakes.stations import add_availability, build_inventory, station_summary  # noqa: E402
 
 
 def plot_map(summary, region: str, out_path: Path) -> None:
     spec = REGIONS[region]
     lat0, lat1, lon0, lon1 = spec["bbox"]
-    seismic = summary[~summary["seismoacoustic"]]
+    is_nodal = summary["datacenter"] == "IRISPH5"
+    nodal = summary[is_nodal & ~summary["seismoacoustic"]]
+    seismic = summary[~is_nodal & ~summary["seismoacoustic"]]
     seismoacoustic = summary[summary["seismoacoustic"]]
 
     fig, ax = plt.subplots(figsize=(10, 7))
+    if len(nodal):
+        ax.scatter(
+            nodal["longitude"], nodal["latitude"],
+            c="tan", s=4, marker="o", alpha=0.5,
+            label=f"2016 nodal, LASSO/YW (n={len(nodal)})", zorder=1,
+        )
     ax.scatter(
         seismic["longitude"], seismic["latitude"],
-        c="0.6", s=18, marker="^", label=f"seismic only (n={len(seismic)})", zorder=2,
+        c="0.55", s=18, marker="^", label=f"permanent seismic (n={len(seismic)})", zorder=2,
     )
     ax.scatter(
         seismoacoustic["longitude"], seismoacoustic["latitude"],
@@ -48,7 +56,8 @@ def plot_map(summary, region: str, out_path: Path) -> None:
     ax.set(
         xlabel="Longitude", ylabel="Latitude", xlim=(lon0, lon1), ylim=(lat0, lat1),
         title=f"{region} station coverage — seismic + infrasound (WS2)\n"
-              f"networks: {', '.join(spec['seismic_networks'])}",
+              f"fdsnws: {', '.join(spec['seismic_networks'])}"
+              + (f"   |   PH5: {', '.join(spec['ph5_networks'])}" if spec.get("ph5_networks") else ""),
     )
     ax.legend(loc="upper right", fontsize=9)
     ax.grid(alpha=0.3)
@@ -62,11 +71,17 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--region", required=True, choices=list(REGIONS))
     ap.add_argument("--client", default="IRIS")
+    ap.add_argument("--no-nodal", action="store_true", help="skip PH5 nodal networks (LASSO/YW)")
+    ap.add_argument("--no-availability", action="store_true", help="skip fdsnws-availability query")
     args = ap.parse_args()
     region = args.region
 
-    print(f"Querying FDSN ({args.client}) for {region} networks {REGIONS[region]['seismic_networks']} …")
-    inv = build_inventory(region, client=args.client)
+    print(f"Querying FDSN ({args.client}) for {region} networks {REGIONS[region]['seismic_networks']} "
+          f"+ PH5 {REGIONS[region].get('ph5_networks', []) if not args.no_nodal else '[]'} …")
+    inv = build_inventory(region, client=args.client, include_nodal=not args.no_nodal)
+    if not args.no_availability:
+        print("Querying fdsnws-availability for actual archived-data extents …")
+        inv = add_availability(inv)
     summary = station_summary(inv)
     infra = summary[summary["seismoacoustic"]]
 

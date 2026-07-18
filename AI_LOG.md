@@ -15,6 +15,21 @@ entries short: what was asked, what was accepted/rejected, and why.
   infrasound is an optional second branch (seismic-only must stand alone).
 - Roadmap encoded as GitHub issues (WS0–WS5). See ROADMAP.md.
 
+## 2026-07-18 — WS2 #4 Oklahoma station inventory (Claude, Opus 4.8)
+- Ran `build_inventory("OK")`; found 282 permanent seismic stations, 9 seismoacoustic.
+- **Fixed a real bug:** initial `is_infrasound` conflated acoustic-rate mics (`BDF`/`BDO`)
+  with 1-sps meteorological pressure (`LDF`/`LDM`/`LDO`). Now classified by SEED
+  band+instrument code (`is_acoustic_channel`).
+- Added the 2016 Oklahoma nodal experiments from the **IRIS PH5 archive** (not in
+  standard fdsnws): `2A` = LASSO (~1829 nodes, no infrasound), `YW` = Community
+  Wavefield (adds 9 `HDF` seismoacoustic sites near Enid, Jun–Nov 2016). Network
+  codes discovered by querying IRISPH5, not guessed.
+- Added actual archived-data availability via the fdsnws-availability *extent*
+  service (`data_start`/`data_end`/`n_timespans` gappiness proxy) — reveals
+  metadata epochs overstate real data (e.g. GS.ADOK meta 2010 vs data 2013).
+- Result: 18 seismoacoustic stations total. Verification: 13 tests pass, ruff clean,
+  outputs regenerated and inspected (map + CSVs).
+
 ## Template
 ### YYYY-MM-DD — <topic> (<model>)
 - Prompt/intent:
