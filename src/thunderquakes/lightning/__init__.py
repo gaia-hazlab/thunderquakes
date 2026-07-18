@@ -12,5 +12,9 @@ bound on true lightning activity when computing completeness.
 """
 
 from thunderquakes.lightning.glm import load_glm_strikes
+from thunderquakes.lightning.wwlln import load_wwlln_strikes, parse_wwlln_file
 
-__all__ = ["load_glm_strikes"]
+# Shared output schema for every lightning catalog loader (GLM / ALDN / WWLLN).
+COMMON_SCHEMA = ["time_utc", "latitude", "longitude", "peak_current", "source"]
+
+__all__ = ["COMMON_SCHEMA", "load_glm_strikes", "load_wwlln_strikes", "parse_wwlln_file"]

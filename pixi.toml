@@ -22,6 +22,7 @@ requests = "*"
 tqdm = "*"
 pyyaml = "*"
 jupyterlab = "*"
+h5netcdf = ">=1.8.1,<2"
 
 [pypi-dependencies]
 thunderquakes = { path = ".", editable = true }

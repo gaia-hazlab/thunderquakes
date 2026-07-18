@@ -30,6 +30,21 @@ entries short: what was asked, what was accepted/rejected, and why.
 - Result: 18 seismoacoustic stations total. Verification: 13 tests pass, ruff clean,
   outputs regenerated and inspected (map + CSVs).
 
+## 2026-07-18 — WS3 #6 GLM loader + WWLLN loader (Claude, Opus 4.8)
+- Implemented `lightning.load_glm_strikes`: lists GOES-GLM L2 granules on AWS S3
+  (anon), reads flash centroids via xarray/h5netcdf, filters to bbox, returns the
+  common schema. Threaded granule reads (`max_workers`) for practical speed.
+  GLM East satellite auto-picked by date (goes16 → goes19 at 2025-04-04).
+  Verified on real data: 5,120 OK flashes in 20 min during the 2019-05-20 outbreak.
+- Added `h5netcdf` dep (read netCDF from S3 file objects).
+- Implemented `lightning.load_wwlln_strikes` / `parse_wwlln_file` against the WWLLN
+  located-stroke (A-file) format. **Access note:** WWLLN needs a data agreement but
+  is operated by UW (Holzworth/ESS) — internal path available. Loader is ready for
+  the files (esp. Alaska / pre-2018 where GLM fails).
+- GLM/WWLLN report energy, not peak current → `peak_current` left NaN by design.
+- `scripts/fetch_glm.py` caches a region+window catalog to outputs/ (CSV).
+- Verification: 18 tests pass (no-network parse/filter tests), ruff clean.
+
 ## Template
 ### YYYY-MM-DD — <topic> (<model>)
 - Prompt/intent:
