@@ -63,6 +63,23 @@ entries short: what was asked, what was accepted/rejected, and why.
   on CC/BH channels (artifact, not source physics).
 - Verification: 22 tests pass, ruff clean, figures + summary reviewed.
 
+## 2026-07-19 — WS1 #3 cache + duration + seismo-acoustic (Claude, Opus 4.8)
+- Added an on-disk waveform cache (`data/cache.py`, `.npz` per window + `.miss`
+  markers) so figures/analyses never re-fetch from FDSN. Populated 596 traces.
+- **Window question, answered from data:** individual claps ~few s; median *active*
+  energy ~39 s; episode span median 89 s (often filling/exceeding the 150 s window).
+  → recommend **50 s window @ 100 Hz, stride 25 s** (captures the discriminative
+  burst; stride covers long tails). 150 s is unnecessary.
+- **Caught a data trap:** PNWML `trace_P_arrival_sample`=7000 is a *placeholder*
+  for thunder, not the true onset — the real energy sits ~30-40 s earlier. Reworked
+  the duration metric to be onset-free (span above 3×robust-noise).
+- **Seismo-acoustic delay** at CC.CPCO/KWBU/SVIC: 8/9 events show seismic vs
+  infrasound envelopes correlated at ~0 s lag (xcorr 0.65-0.94, median 0.85) —
+  strong coupling signature; feeds WS4 Model B. Constrained lag search to ±30 s to
+  drop a spurious 104 s match. Small N (infrasound sparse at those event times).
+- Dropped comcat earthquake/explosion (QuakeXNet already covers those).
+- Enforced ruff on scripts/ too; 25 tests pass.
+
 ## Template
 ### YYYY-MM-DD — <topic> (<model>)
 - Prompt/intent:

@@ -58,8 +58,8 @@ def plot_map(summary, region: str, out_path: Path) -> None:
     ax.set(
         xlabel="Longitude", ylabel="Latitude", xlim=(lon0, lon1), ylim=(lat0, lat1),
         title=f"{region} station coverage — seismic + infrasound (WS2)\n"
-              f"fdsnws: {', '.join(spec['seismic_networks'])}"
-              + (f"   |   PH5: {', '.join(spec['ph5_networks'])}" if spec.get("ph5_networks") else ""),
+        f"fdsnws: {', '.join(spec['seismic_networks'])}"
+        + (f"   |   PH5: {', '.join(spec['ph5_networks'])}" if spec.get("ph5_networks") else ""),
     )
     ax.legend(loc="upper right", fontsize=9)
     ax.grid(alpha=0.3)
@@ -78,8 +78,9 @@ def main() -> int:
     args = ap.parse_args()
     region = args.region
 
-    print(f"Querying FDSN ({args.client}) for {region} networks {REGIONS[region]['seismic_networks']} "
-          f"+ PH5 {REGIONS[region].get('ph5_networks', []) if not args.no_nodal else '[]'} …")
+    ph5 = REGIONS[region].get("ph5_networks", []) if not args.no_nodal else []
+    print(f"Querying FDSN ({args.client}) for {region} "
+          f"networks {REGIONS[region]['seismic_networks']} + PH5 {ph5} …")
     inv = build_inventory(region, client=args.client, include_nodal=not args.no_nodal)
     if not args.no_availability:
         print("Querying fdsnws-availability for actual archived-data extents …")

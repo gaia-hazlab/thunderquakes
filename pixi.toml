@@ -31,8 +31,8 @@ python-dateutil = "*"
 
 [tasks]
 test = "pytest -q"
-lint = "ruff check src tests"
-fmt = "ruff format src tests"
+lint = "ruff check src tests scripts"
+fmt = "ruff format src tests scripts"
 report = "quarto render report/manuscript.qmd"
 
 # --- ML feature: heavier deps kept out of the default env ---
