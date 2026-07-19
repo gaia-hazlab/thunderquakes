@@ -80,6 +80,19 @@ entries short: what was asked, what was accepted/rejected, and why.
 - Dropped comcat earthquake/explosion (QuakeXNet already covers those).
 - Enforced ruff on scripts/ too; 25 tests pass.
 
+## 2026-07-19 — WS4 #8 seismic-only CNN baseline (Claude, Opus 4.8)
+- Built the cache-backed dataset pipeline (`models/dataset.py`): 50 s @ 100 Hz
+  window cropped around the envelope peak (onset-free) → log-spectrogram; classes
+  thunder / sonic boom / surface event / noise (eq/explosion left to QuakeXNet).
+- `models/cnn.py` (2D CNN, dropout for MC-dropout later) + `models/train.py`
+  (station-disjoint GroupShuffleSplit, class-weighted loss, PR-AUC headline).
+- First baseline (station-disjoint, ~600 traces): **thunder PR-AUC 0.61** (base
+  rate 0.37). Confusion is exactly the WS1 prediction — thunder ↔ sonic boom and
+  thunder ↔ surface event; noise clean. Clear mandate for Model B (infrasound).
+- Ran under the `ml` pixi env (PyTorch). 28 tests pass; ruff clean.
+- Baseline only: needs more data/augmentation, 3-C input, and the infrasound
+  branch — tracked on #8/#9.
+
 ## Template
 ### YYYY-MM-DD — <topic> (<model>)
 - Prompt/intent:
