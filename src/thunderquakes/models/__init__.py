@@ -1,9 +1,31 @@
 """CNN classifier, uncertainty estimation, and training (WS4).
 
-Model A: seismic-only 3-C CNN — the deployable workhorse (all stations, all epochs).
-Model B: seismic + infrasound dual-branch — trained/evaluated on co-located
-         (TA/N4/AK-TA BDF) subset; ablation-proves the seismo-acoustic delay and
-         produces high-confidence auto-labels to clean Model A's training set.
-Infrasound is an optional second branch (Model A == Model B with it masked).
-Uncertainty: MC-dropout + a small deep ensemble, with calibration (ECE).
+Model A: seismic-only 2D CNN (anti-aliased BlurPool) — deployable everywhere.
+Model B: seismic + infrasound dual-branch — the seismo-acoustic coupling (WS1:
+median envelope xcorr 0.85 at ~0 s lag) is the discriminator that should break the
+thunder<->sonic-boom / surface-event confusion seen in the Model A baseline.
+
+Dataset/augment helpers import cleanly in the default env; cnn/train require the
+'ml' env (torch) so import those modules explicitly.
 """
+
+from thunderquakes.models.augment import augment_training_set, augment_window
+from thunderquakes.models.dataset import (
+    CLASS_STORE,
+    REGION_CLASSES,
+    RawDataset,
+    WindowConfig,
+    build_windows,
+    to_spectrograms,
+)
+
+__all__ = [
+    "CLASS_STORE",
+    "REGION_CLASSES",
+    "RawDataset",
+    "WindowConfig",
+    "augment_training_set",
+    "augment_window",
+    "build_windows",
+    "to_spectrograms",
+]

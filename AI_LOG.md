@@ -93,6 +93,48 @@ entries short: what was asked, what was accepted/rejected, and why.
 - Baseline only: needs more data/augmentation, 3-C input, and the infrasound
   branch — tracked on #8/#9.
 
+## 2026-07-21 — WS4 #8/#9/#11 CNN hardening + first OK generalization test (Claude, Opus 4.8)
+- **BlurPool anti-aliasing** (Zhang 2019 MaxBlurPool: MaxPool stride-1 + binomial
+  low-pass, stride-2) in every downsampling block — plain strided pooling aliases
+  spectrogram structure.
+- **Architecture exploration**: compared short-fat (w64/d3), long-skinny (w16/d5),
+  and a w32/d3 baseline. Short-fat won on both PNW (PR-AUC 0.65) and OK-targeted
+  (PR-AUC 0.73) training.
+- **Augmentation** (`models/augment.py`): real-noise injection sampled from the
+  TRAIN-split noise windows (no leakage), amplitude scaling, polarity flip, white-
+  noise dithering — applied only after the station-disjoint split.
+- **Region-aware classes** (`REGION_CLASSES`): OK model trains on {thunder, sonic
+  boom, noise} — surface events are a real PNW/AK confuser but not an OK source
+  type, so they're dropped rather than wasting model capacity / distorting the
+  deployment-distribution match.
+- **Waveform verification galleries** (`scripts/plot_waveforms.py`): per-class
+  waveform+spectrogram grids for human review — generated for PNW (4 classes) and
+  OK's class set (3 classes). Confirms thunder and sonic-boom are visually near-
+  identical multi-clap bursts — the confusion is physically real, not a labelling bug.
+- **OK-targeted model**: PR-AUC 0.73, thunder/noise separation now clean (0 cross-
+  errors); remaining confusion is purely thunder<->sonic-boom (15/60 test events).
+  IMPORTANT CAVEAT: PNWML has ZERO Oklahoma thunder examples (all 146 are PNW
+  networks CC/UW/PB) — this model is trained entirely on PNW data, curated to OK's
+  class mix. It has not yet seen a single real OK thunderquake.
+- **First synchronous-lightning generalization test** (`scripts/detect_ok_thunder
+  quakes.py`, issue #11): ran the OK model over continuous data at OK.CROK during
+  the 2019-05-20 severe-weather outbreak, sliding 50s/25s-stride window, matched
+  candidate detections against GOES-GLM strikes.
+  - First attempt used radius=50km/window=90s and got a "100% match" — caught this
+    as methodologically weak: with ~21,350 GLM flashes statewide in 90 min (1 every
+    0.25s), almost any window matches something nearby by chance regardless of the
+    seismic signal's validity.
+  - Fixed: tightened to radius=15km (thunder's approximate audible/coupling range)
+    and window=±20s, and added a NULL-RATE BASELINE (same test on a random sample
+    of all windows, not just candidates) so the result is interpretable.
+  - Honest result: candidate match rate 40% vs null baseline 20% (n=5 candidates —
+    too small to claim significance, but directionally consistent with the model
+    finding something real). This is a legitimate first pass, not a validated
+    detector — next iteration needs more candidate events (longer time span,
+    multiple stations) before the PNW->OK generalization claim can be trusted.
+- Verification: 31 tests pass (dataset/augment/cnn all covered where feasible
+  without GPU), ruff clean across src/tests/scripts.
+
 ## Template
 ### YYYY-MM-DD — <topic> (<model>)
 - Prompt/intent:

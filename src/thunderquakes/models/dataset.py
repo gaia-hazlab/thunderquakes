@@ -1,12 +1,15 @@
 """Build labelled CNN inputs from PNWML metadata via the waveform cache (WS4 #8).
 
-Turns each labelled trace into a fixed 50 s window (@100 Hz, the WS1-recommended
-size) cropped around the envelope peak, then a log-spectrogram — the 2D-CNN input.
-Cache-backed, so rebuilding the dataset is fast/offline after the first fetch.
+Two stages so augmentation can act on raw waveforms before the spectrogram:
+  1. ``build_windows``  -> raw 50 s @100 Hz windows (WS1-recommended size), cropped
+     around the envelope peak (onset-free — PNWML sample-7000 is a placeholder).
+  2. ``to_spectrograms`` -> band-limited, per-image-standardised log-spectrograms
+     (the 2D-CNN input), applied AFTER any augmentation.
 
-Classes (Model A, seismic-only): thunder / sonic boom / surface event / noise.
-Earthquake & explosion are handled by the existing QuakeXNet classifier, so they
-are intentionally excluded here (this is the thunderquake-vs-confusers model).
+Region-aware class sets (see :data:`REGION_CLASSES`): surface events are a real
+confuser in PNW/AK but essentially absent as a source class in Oklahoma, so the OK
+model uses a leaner negative set. Earthquake & explosion are handled by the
+existing QuakeXNet classifier and excluded here.
 """
 
 from __future__ import annotations
@@ -27,6 +30,12 @@ CLASS_STORE = {
     "surface event": "exotic",
     "noise": "noise",
 }
+# Which negative classes matter where (thunder is always the positive).
+REGION_CLASSES = {
+    "OK": ["thunder", "sonic boom", "noise"],            # no surface events in OK
+    "PNW": ["thunder", "sonic boom", "surface event", "noise"],
+    "AK": ["thunder", "sonic boom", "surface event", "noise"],
+}
 
 
 @dataclass(frozen=True)
@@ -42,16 +51,13 @@ class WindowConfig:
         return int(round(self.win_s * self.fs))
 
 
-def crop_around_peak(data: np.ndarray, n_samples: int) -> np.ndarray:
-    """Crop ``n_samples`` centred on the smoothed-envelope peak (clamped to bounds).
-
-    Onset-free by design — PNWML's sample-7000 'onset' is a placeholder for thunder.
-    """
+def crop_around_peak(data: np.ndarray, n_samples: int, offset: int = 0) -> np.ndarray:
+    """Crop ``n_samples`` centred on the smoothed-envelope peak (+ optional jitter offset)."""
     if len(data) <= n_samples:
         return np.pad(data, (0, n_samples - len(data)))
-    env = envelope(data)
-    peak = int(np.argmax(env))
-    lo = int(np.clip(peak - n_samples // 2, 0, len(data) - n_samples))
+    peak = int(np.argmax(envelope(data)))
+    start = peak - n_samples // 2 + offset
+    lo = int(np.clip(start, 0, len(data) - n_samples))
     return data[lo : lo + n_samples]
 
 
@@ -60,36 +66,35 @@ def log_spectrogram_image(win: np.ndarray, cfg: WindowConfig) -> np.ndarray:
     f, _, sxx = _spec(win, fs=cfg.fs, nperseg=cfg.nperseg, noverlap=cfg.noverlap)
     band = (f >= cfg.band[0]) & (f <= cfg.band[1])
     img = 10.0 * np.log10(sxx[band] + 1e-12)
-    img = (img - img.mean()) / (img.std() + 1e-6)  # per-image standardisation
+    img = (img - img.mean()) / (img.std() + 1e-6)
     return img.astype("float32")
 
 
 @dataclass
-class Dataset:
-    X: np.ndarray  # (N, 1, F, T) float32
+class RawDataset:
+    """Raw labelled windows (pre-spectrogram) + metadata for augmentation & splits."""
+
+    W: np.ndarray  # (N, n_samples) float32
     y: np.ndarray  # (N,) int
-    meta: pd.DataFrame  # network, station, source_type, ...
+    meta: pd.DataFrame
     classes: list = field(default_factory=list)
+    fs: float = 100.0
 
 
-def build_dataset(
+def build_windows(
     metadata: dict[str, pd.DataFrame],
-    classes=tuple(CLASS_STORE),
+    classes,
     cfg: WindowConfig | None = None,
     n_per_class: int | None = None,
     client="IRIS",
     seed: int = 0,
-) -> Dataset:
-    """Assemble a labelled spectrogram dataset from PNWML metadata via the cache.
-
-    ``metadata`` maps store name ('exotic'/'noise') -> DataFrame.
-    """
+) -> RawDataset:
+    """Assemble raw 50 s windows for the given classes from PNWML metadata via the cache."""
     cfg = cfg or WindowConfig()
     classes = list(classes)
-    imgs, labels, rows = [], [], []
+    wins, labels, rows = [], [], []
     for ci, cls in enumerate(classes):
-        store = CLASS_STORE[cls]
-        sel = metadata[store]
+        sel = metadata[CLASS_STORE[cls]]
         sel = sel[sel["source_type"] == cls]
         if n_per_class and len(sel) > n_per_class:
             sel = sel.sample(n_per_class, random_state=seed)
@@ -101,11 +106,14 @@ def build_dataset(
             )
             if data is None or len(data) < cfg.n_samples // 2:
                 continue
-            win = crop_around_peak(np.asarray(data, float), cfg.n_samples)
-            imgs.append(log_spectrogram_image(win, cfg)[None])  # add channel dim
+            wins.append(crop_around_peak(np.asarray(data, np.float32), cfg.n_samples))
             labels.append(ci)
             rows.append({"source_type": cls, "network": r.station_network_code,
                          "station": r.station_code, "time": str(r.trace_start_time)})
-    X = np.stack(imgs).astype("float32")
-    y = np.asarray(labels, dtype="int64")
-    return Dataset(X=X, y=y, meta=pd.DataFrame(rows), classes=classes)
+    return RawDataset(W=np.stack(wins).astype("float32"), y=np.asarray(labels, "int64"),
+                      meta=pd.DataFrame(rows), classes=classes, fs=cfg.fs)
+
+
+def to_spectrograms(W: np.ndarray, cfg: WindowConfig) -> np.ndarray:
+    """Convert (N, n_samples) raw windows -> (N, 1, F, T) standardised log-spectrograms."""
+    return np.stack([log_spectrogram_image(w, cfg)[None] for w in W]).astype("float32")
