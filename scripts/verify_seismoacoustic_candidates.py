@@ -31,9 +31,14 @@ import pandas as pd  # noqa: E402
 from thunderquakes.config import REPO_ROOT  # noqa: E402
 from thunderquakes.data import cached_waveform  # noqa: E402
 from thunderquakes.features import seismo_acoustic_lag, smooth_env  # noqa: E402
+from thunderquakes.plotting import LETTER_WIDTH_IN, set_paper_style  # noqa: E402
+
+set_paper_style()
 
 WINDOW_S = 90.0
 XCORR_THRESHOLD = 0.5  # WS1's working definition of "strong" seismoacoustic coupling
+GALLERY_NCOL = 2   # 2 columns keeps each panel wide enough for >=10pt labels at print width
+GALLERY_MAX = 6    # examples actually drawn (best-to-worst by coupling strength)
 
 
 def main() -> int:
@@ -92,39 +97,43 @@ def main() -> int:
 
     # Paired seismic+infrasound gallery, sorted by coupling strength (best first)
     gallery.sort(key=lambda g: g[6], reverse=True)
-    ncol = 4
-    n = min(len(gallery), 16)
-    nrow = int(np.ceil(n / ncol))
+    ncol = min(GALLERY_NCOL, len(gallery))
+    n = min(len(gallery), GALLERY_MAX)
+    nrow = int(np.ceil(n / ncol)) if ncol else 0
     if n:
-        fig, axes = plt.subplots(nrow * 2, ncol, figsize=(3.6 * ncol, 2.6 * nrow), squeeze=False)
+        col_w = LETTER_WIDTH_IN / GALLERY_NCOL
+        fig, axes = plt.subplots(nrow * 2, ncol, figsize=(col_w * ncol, 2.2 * nrow),
+                                 sharex="col", squeeze=False)
         for k in range(n):
             ev, seis, fs_s, infra_data, fs_i, lag, coef = gallery[k]
             r, c = divmod(k, ncol)
+            is_last_row = r == nrow - 1
             ts = np.arange(len(seis)) / fs_s
             ti = np.arange(len(infra_data)) / fs_i
             aw = axes[r * 2][c]
             aw.plot(ts, smooth_env(seis, fs_s), lw=0.8, color="steelblue", label="seismic env")
-            aw.set_title(f"{ev.network}.{ev.station}  xcorr={coef:.2f} lag={lag:+.1f}s\n"
-                        f"d={ev.min_dist_km*1000:.0f}m  {str(ev.event_start)[:16]}", fontsize=6)
-            aw.set_xlabel("Time (s)", fontsize=6)
-            aw.set_ylabel("Seismic envelope\namplitude (counts)", fontsize=6)
-            aw.tick_params(labelsize=6)
+            aw.set_title(f"{ev.network}.{ev.station}  {str(ev.event_start)[:16]}\n"
+                        f"xcorr={coef:.2f}  lag={lag:+.1f}s  d={ev.min_dist_km*1000:.0f}m",
+                        fontsize=10)
+            aw.tick_params(labelsize=10)
+            if c == 0:
+                aw.set_ylabel("Seismic env.\n(counts)", fontsize=10)
             ai = axes[r * 2 + 1][c]
             ai.plot(ti, smooth_env(infra_data, fs_i), lw=0.8, color="darkorange",
                    label="infrasound env")
-            ai.set_xlabel("Time (s)", fontsize=6)
-            ai.set_ylabel("Infrasound envelope\namplitude (counts)", fontsize=6)
-            ai.tick_params(labelsize=6)
+            ai.tick_params(labelsize=10)
+            if c == 0:
+                ai.set_ylabel("Infrasound env.\n(counts)", fontsize=10)
+            if is_last_row:
+                ai.set_xlabel("Time (s)", fontsize=10)
         for k in range(n, nrow * ncol):
             r, c = divmod(k, ncol)
             axes[r * 2][c].axis("off")
             axes[r * 2 + 1][c].axis("off")
-        fig.suptitle("OK GLM candidates: seismic vs infrasound envelope coupling\n"
-                    "(sorted best-to-worst by cross-correlation)", fontweight="bold")
-        fig.tight_layout()
+        fig.tight_layout(h_pad=0.3)
         out = fig_dir / "ok_seismoacoustic_verification.png"
-        fig.savefig(out, dpi=130)
-        print(f"\ngallery -> {out.relative_to(REPO_ROOT)}")
+        fig.savefig(out)
+        print(f"\ngallery -> {out.relative_to(REPO_ROOT)} (showing {n}/{len(gallery)})")
 
     print("result  -> catalogs/ok_seismoacoustic_verification.csv")
     return 0

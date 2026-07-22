@@ -33,6 +33,13 @@ import pandas as pd  # noqa: E402
 from thunderquakes.config import REGIONS, REPO_ROOT  # noqa: E402
 from thunderquakes.geo import haversine_km  # noqa: E402
 from thunderquakes.lightning import load_glm_strikes  # noqa: E402
+from thunderquakes.plotting import (  # noqa: E402
+    LETTER_WIDTH_IN,
+    gray_relief_background,
+    set_paper_style,
+)
+
+set_paper_style()
 
 RADII_KM = [5.0, 10.0, 20.0]
 
@@ -98,18 +105,52 @@ def main() -> int:
         cols = ["network", "station", "dist_km", "strike_time"]
         print(survey.head(15)[cols].to_string(index=False))
 
-    fig, ax = plt.subplots(figsize=(9, 7))
     lat0, lat1, lon0, lon1 = REGIONS[args.region]["bbox"]
-    sizes = 15 + 8 * np.sqrt(np.clip(stations[f"n_strikes_within_{max_r:g}km"], 0, None))
-    sc = ax.scatter(stations["longitude"], stations["latitude"], s=sizes,
-                    c=stations[f"n_strikes_within_{max_r:g}km"], cmap="inferno_r",
-                    edgecolors="k", linewidths=0.3)
-    fig.colorbar(sc, label=f"# strikes within {max_r:g} km")
-    ax.set(xlabel="Longitude (°E)", ylabel="Latitude (°N)", xlim=(lon0, lon1), ylim=(lat0, lat1),
-          title=f"{args.region} close-strike survey (independent of model)\n"
-                f"{t0:%Y-%m-%d %H:%M} → {t1:%H:%M} UTC, radius {max_r:g} km")
+    mean_lat_rad = np.radians((lat0 + lat1) / 2)
+    aspect = 1.0 / max(np.cos(mean_lat_rad), 0.05)
+    width = LETTER_WIDTH_IN
+    height = min(9.5, width * (lat1 - lat0) / (lon1 - lon0) * aspect)
+    fig, ax = plt.subplots(figsize=(width, height))
+    gray_relief_background((lat0, lat1, lon0, lon1), ax)
+
+    count_col = f"n_strikes_within_{max_r:g}km"
+    is_sa = stations.get("seismoacoustic", pd.Series(False, index=stations.index)).fillna(False)
+    vmin, vmax = 0, max(int(stations[count_col].max()), 1)
+
+    def _sizes(counts):
+        return 15 + 8 * np.sqrt(np.clip(counts, 0, None))
+
+    sc = ax.scatter(
+        stations.loc[~is_sa, "longitude"], stations.loc[~is_sa, "latitude"],
+        s=_sizes(stations.loc[~is_sa, count_col]), c=stations.loc[~is_sa, count_col],
+        cmap="inferno_r", vmin=vmin, vmax=vmax, marker="^",
+        edgecolors="k", linewidths=0.3, zorder=3, label="seismic station",
+    )
+    if is_sa.any():
+        ax.scatter(
+            stations.loc[is_sa, "longitude"], stations.loc[is_sa, "latitude"],
+            s=_sizes(stations.loc[is_sa, count_col]) * 1.8, c=stations.loc[is_sa, count_col],
+            cmap="inferno_r", vmin=vmin, vmax=vmax, marker="*",
+            edgecolors="k", linewidths=0.5, zorder=4,
+            label=f"seismic + infrasound (n={int(is_sa.sum())})",
+        )
+    cbar = fig.colorbar(sc)
+    cbar.set_label(f"Number of GLM strikes within {max_r:g} km", fontsize=10)
+    cbar.ax.tick_params(labelsize=10)
+    # Pad beyond the nominal bbox to the union with actual station coordinates,
+    # so no marker (and no marker's radius) is clipped at the map edge.
+    all_lon = pd.concat([stations["longitude"], pd.Series([lon0, lon1])])
+    all_lat = pd.concat([stations["latitude"], pd.Series([lat0, lat1])])
+    lon_pad = 0.04 * (all_lon.max() - all_lon.min() + 1e-6)
+    lat_pad = 0.04 * (all_lat.max() - all_lat.min() + 1e-6)
+    ax.set(xlabel="Longitude (°E)", ylabel="Latitude (°N)",
+          xlim=(all_lon.min() - lon_pad, all_lon.max() + lon_pad),
+          ylim=(all_lat.min() - lat_pad, all_lat.max() + lat_pad))
+    ax.set_aspect(aspect)
+    ax.grid(alpha=0.3)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=1, fontsize=9.5)
     fig.tight_layout()
-    fig.savefig(fig_dir / "ok_close_strikes_map.png", dpi=150)
+    fig.savefig(fig_dir / "ok_close_strikes_map.png", bbox_inches="tight")
 
     print("\nsurvey -> outputs/ok_close_strikes_survey.csv")
     print("map    -> docs/figures/ok_close_strikes_map.png")

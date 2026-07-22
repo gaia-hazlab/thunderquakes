@@ -32,6 +32,9 @@ import pandas as pd  # noqa: E402
 from thunderquakes.config import REPO_ROOT  # noqa: E402
 from thunderquakes.data import cached_waveform  # noqa: E402
 from thunderquakes.features.characterize import power_spectrum, trace_features  # noqa: E402
+from thunderquakes.plotting import LETTER_WIDTH_IN, set_paper_style  # noqa: E402
+
+set_paper_style()
 
 # Classes to compare and where their metadata lives. comcat (earthquake/explosion)
 # is added once that metadata is available; here we use the locally-complete
@@ -135,17 +138,16 @@ def main() -> int:
     colors = dict(zip(classes, plt.cm.tab10(np.linspace(0, 1, len(classes))), strict=True))
 
     # --- Figure 1: median normalised spectra by class ---
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(LETTER_WIDTH_IN, LETTER_WIDTH_IN * 0.75))
     for cls in classes:
         idx = (df["source_type"] == cls).values
         med = np.nanmedian(specs[idx], axis=0)
         ax.loglog(LOGF, med, label=f"{cls} (n={idx.sum()})", color=colors[cls], lw=2)
-    ax.set(xlabel="Frequency (Hz)", ylabel="Normalised power (median)",
-           title="PNWML per-class median spectra (vertical, 1–45 Hz)")
+    ax.set(xlabel="Frequency (Hz)", ylabel="Normalized power (median, dimensionless)")
     ax.legend()
     ax.grid(alpha=0.3, which="both")
     fig.tight_layout()
-    fig.savefig(fig_dir / "pnwml_spectra.png", dpi=150)
+    fig.savefig(fig_dir / "pnwml_spectra.png")
     print(f"  fig -> {(fig_dir / 'pnwml_spectra.png').relative_to(REPO_ROOT)}")
 
     # --- Figure 2: feature distributions by class ---
@@ -155,20 +157,19 @@ def main() -> int:
         ("spectral_centroid_hz", "Spectral centroid (Hz)"),
         ("kurtosis", "Kurtosis (dimensionless)"),
     ]
-    fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+    fig, axes = plt.subplots(2, 2, figsize=(LETTER_WIDTH_IN, LETTER_WIDTH_IN * 0.85))
     for ax, (feat, ylabel) in zip(axes.ravel(), panels, strict=True):
         data = [df.loc[df["source_type"] == cls, feat].dropna().values for cls in classes]
         bp = ax.boxplot(data, tick_labels=classes, showfliers=False, patch_artist=True)
         for patch, cls in zip(bp["boxes"], classes, strict=True):
             patch.set_facecolor(colors[cls])
             patch.set_alpha(0.6)
-        ax.set(title=ylabel, xlabel="Class", ylabel=ylabel)
+        ax.set(xlabel="Class", ylabel=ylabel)
         ax.tick_params(axis="x", rotation=20)
         if feat == "spectral_centroid_hz":
             ax.axhspan(1, 20, alpha=0.05, color="k")
-    fig.suptitle("PNWML per-class feature distributions", fontweight="bold")
     fig.tight_layout()
-    fig.savefig(fig_dir / "pnwml_distributions.png", dpi=150)
+    fig.savefig(fig_dir / "pnwml_distributions.png")
     print(f"  fig -> {(fig_dir / 'pnwml_distributions.png').relative_to(REPO_ROOT)}")
 
     print(f"\nfeatures -> {(cat_dir / 'pnwml_class_features.csv').relative_to(REPO_ROOT)}")

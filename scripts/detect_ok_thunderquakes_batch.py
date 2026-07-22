@@ -38,6 +38,9 @@ from thunderquakes.evaluation import match_detections_to_strikes, two_proportion
 from thunderquakes.lightning import load_glm_strikes  # noqa: E402
 from thunderquakes.models.cnn import build_seismic_cnn  # noqa: E402
 from thunderquakes.models.dataset import WindowConfig, log_spectrogram_image  # noqa: E402
+from thunderquakes.plotting import LETTER_WIDTH_IN, set_paper_style  # noqa: E402
+
+set_paper_style()
 
 STRIDE_S = 25.0
 DEFAULT_STATIONS = [  # (network, station) — spread across the state's longitude range
@@ -165,7 +168,7 @@ def main() -> int:
     pd.concat(all_det, ignore_index=True).to_csv(cat_dir / "ok_batch_detections.csv", index=False)
     summary.to_csv(cat_dir / "ok_batch_summary.csv", index=False)
 
-    fig, ax = plt.subplots(figsize=(9, 5))
+    fig, ax = plt.subplots(figsize=(LETTER_WIDTH_IN, LETTER_WIDTH_IN * 0.62))
     x = np.arange(len(summary) + 1)
     n_cand_safe = summary["n_candidates"].replace(0, np.nan)
     n_null_safe = summary["n_null"].replace(0, np.nan)
@@ -177,13 +180,10 @@ def main() -> int:
     ax.bar(x - w / 2, cand_rates, w, label="candidate (model-flagged)", color="crimson")
     ax.bar(x + w / 2, null_rates, w, label="null (random windows)", color="0.6")
     ax.set_xticks(x, labels, rotation=20, ha="right")
-    ax.set(xlabel="Station", ylabel="Match rate vs. GLM strike (fraction, 0-1)", ylim=(0, 1),
-           title="OK synchronous-lightning detection — candidate vs null match rate\n"
-                 f"radius={args.match_radius_km:.0f} km, window=±{args.match_window_s:.0f}s  "
-                 f"(pooled z={z:.2f}, p={p:.3f})")
-    ax.legend(fontsize=9)
+    ax.set(xlabel="Station", ylabel="Match rate vs. GLM strike (fraction, 0-1)", ylim=(0, 1))
+    ax.legend(fontsize=10)
     fig.tight_layout()
-    fig.savefig(fig_dir / "ok_batch_summary.png", dpi=150)
+    fig.savefig(fig_dir / "ok_batch_summary.png")
 
     print("\ndetections -> catalogs/ok_batch_detections.csv")
     print("summary    -> catalogs/ok_batch_summary.csv")

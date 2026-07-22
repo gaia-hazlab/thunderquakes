@@ -33,9 +33,14 @@ from scipy.signal import spectrogram as _spec  # noqa: E402
 
 from thunderquakes.config import REPO_ROOT  # noqa: E402
 from thunderquakes.data import cached_waveform  # noqa: E402
+from thunderquakes.plotting import LETTER_WIDTH_IN, set_paper_style  # noqa: E402
+
+set_paper_style()
 
 EVENT_GAP_S = 90.0  # strikes more than this far apart start a new event (WS1: episodes ~89s median)
 WINDOW_S = 90.0     # extraction window length (WS1 p90/p95 episode span)
+GALLERY_NCOL = 2    # 2 columns keeps each panel wide enough for >=10pt labels at print width
+GALLERY_MAX_PLOT = 8  # cap panels drawn even if more were successfully fetched
 
 
 def cluster_events(survey: pd.DataFrame, radius_km: float, gap_s: float) -> pd.DataFrame:
@@ -133,38 +138,48 @@ def main() -> int:
         fetched.append((ev, data, fs))
     print(f"  got waveform data for {len(fetched)}/{len(sample)}")
 
-    ncol = 4
-    nrow = int(np.ceil(len(fetched) / ncol))
+    plotted = fetched[:GALLERY_MAX_PLOT]
+    ncol = min(GALLERY_NCOL, len(plotted))
+    nrow = int(np.ceil(len(plotted) / ncol)) if ncol else 0
     if nrow:
-        fig, axes = plt.subplots(nrow * 2, ncol, figsize=(3.4 * ncol, 3.0 * nrow), squeeze=False)
-        for k, (ev, data, fs) in enumerate(fetched):
+        col_w = LETTER_WIDTH_IN / GALLERY_NCOL
+        fig, axes = plt.subplots(nrow * 2, ncol, figsize=(col_w * ncol, 2.2 * nrow),
+                                 sharex="col", squeeze=False)
+        spec_axes = []
+        for k, (ev, data, fs) in enumerate(plotted):
             r, c = divmod(k, ncol)
+            is_last_row = r == nrow - 1
             t = np.arange(len(data)) / fs
             aw = axes[r * 2][c]
-            aw.plot(t, data, lw=0.4, color="steelblue")
-            aw.set_title(f"{ev.network}.{ev.station}  d={ev.min_dist_km*1000:.0f}m\n"
-                        f"n_strikes={ev.n_strikes}  {str(ev.event_start)[:16]}", fontsize=6)
-            aw.set_xlabel("Time (s)", fontsize=6)
-            aw.set_ylabel("Amplitude (counts)", fontsize=6)
-            aw.tick_params(labelsize=6)
+            aw.plot(t, data, lw=0.5, color="steelblue")
+            aw.set_title(f"{ev.network}.{ev.station}  d={ev.min_dist_km*1000:.0f}m  "
+                        f"n_strikes={ev.n_strikes}\n{str(ev.event_start)[:16]}", fontsize=10)
+            aw.tick_params(labelsize=10)
+            if c == 0:
+                aw.set_ylabel("Amp\n(counts)", fontsize=10)
             asp = axes[r * 2 + 1][c]
             f, tt, sxx = _spec(data.astype(float), fs=fs, nperseg=128, noverlap=96)
             band = (f >= 1) & (f <= 45)
             asp.pcolormesh(tt, f[band], 10 * np.log10(sxx[band] + 1e-12),
                           shading="gouraud", cmap="inferno")
-            asp.set_xlabel("Time (s)", fontsize=6)
-            asp.set_ylabel("Frequency (Hz)", fontsize=6)
-            asp.tick_params(labelsize=6)
-        for k in range(len(fetched), nrow * ncol):
+            asp.tick_params(labelsize=10)
+            if c == 0:
+                asp.set_ylabel("Freq\n(Hz)", fontsize=10)
+            else:
+                asp.tick_params(labelleft=False)
+            if is_last_row:
+                asp.set_xlabel("Time (s)", fontsize=10)
+            spec_axes.append(asp)
+        for ax in spec_axes[1:]:
+            ax.sharey(spec_axes[0])
+        for k in range(len(plotted), nrow * ncol):
             r, c = divmod(k, ncol)
             axes[r * 2][c].axis("off")
             axes[r * 2 + 1][c].axis("off")
-        fig.suptitle(f"OK GLM-triggered candidates (independent of model) — "
-                    f"radius<={args.radius_km:g}km, n={len(fetched)}", fontweight="bold")
-        fig.tight_layout()
+        fig.tight_layout(h_pad=0.3)
         out = fig_dir / f"verify_ok_candidates_r{args.radius_km:g}km.png"
-        fig.savefig(out, dpi=130)
-        print(f"\ngallery -> {out.relative_to(REPO_ROOT)}")
+        fig.savefig(out)
+        print(f"\ngallery -> {out.relative_to(REPO_ROOT)} (showing {len(plotted)}/{len(fetched)})")
 
     print("events  -> catalogs/ok_candidate_events.csv")
     return 0

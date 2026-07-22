@@ -30,6 +30,9 @@ import pandas as pd  # noqa: E402
 from thunderquakes.config import REPO_ROOT  # noqa: E402
 from thunderquakes.data import cached_waveform  # noqa: E402
 from thunderquakes.features import seismo_acoustic_lag, smooth_env  # noqa: E402
+from thunderquakes.plotting import LETTER_WIDTH_IN, set_paper_style  # noqa: E402
+
+set_paper_style()
 
 WINDOW_S = 150.0
 ONSET_S = 70.0  # PNWML exotic traces have the labelled onset at sample 7000 (70 s @ 100 Hz)
@@ -98,25 +101,23 @@ def main() -> int:
     print(f"Thunder episode span (s): median={pct[0]:.0f}  p90={pct[1]:.0f}  p95={pct[2]:.0f}  "
           f"(n={len(spans)})  | median active time={np.median(actives):.0f}s")
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    fig, axes = plt.subplots(1, 2, figsize=(LETTER_WIDTH_IN, LETTER_WIDTH_IN * 0.42))
     axes[0].hist(spans, bins=30, color="steelblue", edgecolor="white")
     for p, lab in zip(pct, ["median", "p90", "p95"], strict=True):
         axes[0].axvline(p, ls="--", lw=1, color="crimson")
-        axes[0].text(p, axes[0].get_ylim()[1] * 0.9, f"{lab}={p:.0f}s", fontsize=8, rotation=90)
+        axes[0].text(p, axes[0].get_ylim()[1] * 0.9, f"{lab}={p:.0f}s", fontsize=10, rotation=90)
     axes[0].axvspan(0, 50, alpha=0.08, color="green")
-    axes[0].set(xlabel="Episode span above 3x noise floor (s)", ylabel="Number of traces",
-                title=f"Thunderquake episode duration (n={len(spans)})\n"
-                      "green = proposed 50 s window; claps recur across the span")
+    axes[0].set(xlabel="Episode span above 3x noise floor (s)", ylabel="Number of traces")
     for name, data, fs, span in examples:
         t = np.arange(len(data)) / fs
         e = smooth_env(data, fs)
         axes[1].plot(t, e / e.max(), lw=0.8, label=f"{name} (span {span:.0f}s)")
     axes[1].set(xlabel="Time in 150 s window (s)",
                 ylabel="Normalized envelope amplitude (peak = 1, dimensionless)",
-                title="Example thunder envelopes (multi-clap episodes)", xlim=(0, 150))
-    axes[1].legend(fontsize=8)
+                xlim=(0, 150))
+    axes[1].legend(fontsize=10)
     fig.tight_layout()
-    fig.savefig(fig_dir / "pnwml_thunder_duration.png", dpi=150)
+    fig.savefig(fig_dir / "pnwml_thunder_duration.png")
     print(f"  fig -> {(fig_dir / 'pnwml_thunder_duration.png').relative_to(REPO_ROOT)}")
 
     # ── 2. Seismo-acoustic delay ───────────────────────────────────────────
@@ -141,22 +142,20 @@ def main() -> int:
     print(f"\nSeismo-acoustic pairs: {len(sa)}  "
           f"(median |lag|={med_lag:.1f}s, median xcorr={med_xc:.2f})")
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    fig, axes = plt.subplots(1, 2, figsize=(LETTER_WIDTH_IN, LETTER_WIDTH_IN * 0.42))
     hi = sa[sa["xcorr"] >= 0.5]
     axes[0].scatter(sa["lag_s"], sa["xcorr"], s=25, c="0.6", label=f"all (n={len(sa)})")
     axes[0].scatter(hi["lag_s"], hi["xcorr"], s=30, c="crimson",
                     label=f"xcorr≥0.5 (n={len(hi)})")
     axes[0].axhline(0.5, ls=":", c="k", lw=0.8)
     axes[0].set(xlabel="Envelope lag: infrasound minus seismic (s)",
-                ylabel="Peak cross-correlation coefficient (dimensionless, -1 to 1)",
-                title="Seismo-acoustic coupling at thunder stations\n(CC.CPCO/KWBU/SVIC)")
-    axes[0].legend(fontsize=8)
+                ylabel="Peak cross-correlation coefficient (dimensionless, -1 to 1)")
+    axes[0].legend(fontsize=10)
     axes[1].hist(sa["lag_s"], bins=25, color="teal", edgecolor="white")
     axes[1].axvline(0, color="crimson", ls="--", lw=1)
-    axes[1].set(xlabel="Envelope lag: infrasound minus seismic (s)", ylabel="Number of events",
-                title=f"Lag distribution (median {sa['lag_s'].median():+.1f}s)")
+    axes[1].set(xlabel="Envelope lag: infrasound minus seismic (s)", ylabel="Number of events")
     fig.tight_layout()
-    fig.savefig(fig_dir / "pnwml_thunder_seismoacoustic.png", dpi=150)
+    fig.savefig(fig_dir / "pnwml_thunder_seismoacoustic.png")
     print(f"  fig -> {(fig_dir / 'pnwml_thunder_seismoacoustic.png').relative_to(REPO_ROOT)}")
     return 0
 

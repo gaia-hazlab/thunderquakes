@@ -24,6 +24,9 @@ import pandas as pd  # noqa: E402
 from thunderquakes.config import REPO_ROOT  # noqa: E402
 from thunderquakes.models.dataset import REGION_CLASSES, WindowConfig, build_windows  # noqa: E402
 from thunderquakes.models.train import train  # noqa: E402
+from thunderquakes.plotting import set_paper_style  # noqa: E402
+
+set_paper_style()
 
 # (label, width, depth): short-fat has few wide blocks; long-skinny many narrow ones.
 ARCHS = [
@@ -78,7 +81,7 @@ def main() -> int:
 
     m = best["metrics"]
     cm = np.array(m["confusion"])
-    fig, ax = plt.subplots(figsize=(6, 5))
+    fig, ax = plt.subplots(figsize=(5.5, 5))
     im = ax.imshow(cm, cmap="Blues")
     ax.set_xticks(range(len(classes)), classes, rotation=30, ha="right")
     ax.set_yticks(range(len(classes)), classes)
@@ -86,12 +89,10 @@ def main() -> int:
         for j in range(len(classes)):
             ax.text(j, i, cm[i, j], ha="center",
                     color="white" if cm[i, j] > cm.max() / 2 else "black")
-    ax.set(xlabel="Predicted class", ylabel="True class",
-           title=f"Model A ({best_label}, BlurPool + aug)\n"
-                 f"{args.region} station-disjoint  thunder PR-AUC={best_ap:.2f}")
+    ax.set(xlabel="Predicted class", ylabel="True class")
     fig.colorbar(im, fraction=0.046, label="Number of test-set windows")
     fig.tight_layout()
-    fig.savefig(fig_dir / f"cnn_confusion_{args.region}.png", dpi=150)
+    fig.savefig(fig_dir / f"cnn_confusion_{args.region}.png")
 
     import torch
 

@@ -36,6 +36,9 @@ from thunderquakes.evaluation import match_detections_to_strikes  # noqa: E402
 from thunderquakes.lightning import load_glm_strikes  # noqa: E402
 from thunderquakes.models.cnn import build_seismic_cnn  # noqa: E402
 from thunderquakes.models.dataset import WindowConfig, log_spectrogram_image  # noqa: E402
+from thunderquakes.plotting import LETTER_WIDTH_IN, set_paper_style  # noqa: E402
+
+set_paper_style()
 
 STRIDE_S = 25.0  # WS1-recommended: 50 s window, 50% overlap
 
@@ -153,18 +156,17 @@ def main() -> int:
         print(f"\nCandidate windows (prob>=0.5): {len(cand)}; strikes in window: {len(strikes)}")
 
     # GLM strike-rate histogram (density, not overlapping lines: 20k+ strikes saturate the plot)
-    fig, (ax, ax2) = plt.subplots(2, 1, figsize=(14, 6), sharex=True,
-                                  gridspec_kw={"height_ratios": [2, 1]})
+    fig, (ax, ax2) = plt.subplots(
+        2, 1, figsize=(LETTER_WIDTH_IN, LETTER_WIDTH_IN * 0.62),
+        sharex=True, gridspec_kw={"height_ratios": [2, 1]},
+    )
     ax.plot(det["time_utc"], det["thunder_prob"], lw=1, color="steelblue", label="P(thunder)")
     if len(cand):
         ax.scatter(cand["time_utc"], cand["thunder_prob"], s=15, color="crimson", zorder=3,
                   label=f"candidates (n={len(cand)})")
     ax.axhline(0.5, color="0.6", ls=":", lw=1)
-    ax.set(xlabel="Time (UTC)", ylabel="P(thunder) (probability, 0-1)", ylim=(0, 1),
-           title=f"{args.network}.{args.station} — Model A thunder probability vs GLM strike rate\n"
-                 f"({t0:%Y-%m-%d %H:%M} → {t1:%H:%M} UTC)  [match radius "
-                 f"{args.match_radius_km:.0f} km, window ±{args.match_window_s:.0f}s]")
-    ax.legend(fontsize=8, loc="upper right")
+    ax.set(xlabel="Time (UTC)", ylabel="P(thunder) (probability, 0-1)", ylim=(0, 1))
+    ax.legend(fontsize=10, loc="upper right")
     if len(strikes):
         counts, edges = np.histogram(
             strikes["time_utc"].astype("int64"),
@@ -175,7 +177,7 @@ def main() -> int:
     ax2.set(xlabel="Time (UTC)", ylabel="GLM flash count\nper 30 s (statewide)")
     fig.autofmt_xdate()
     fig.tight_layout()
-    fig.savefig(fig_dir / f"ok_detection_{tag}.png", dpi=150)
+    fig.savefig(fig_dir / f"ok_detection_{tag}.png")
 
     print(f"\ndetections -> catalogs/ok_detections_{tag}.csv")
     print(f"figure     -> docs/figures/ok_detection_{tag}.png")

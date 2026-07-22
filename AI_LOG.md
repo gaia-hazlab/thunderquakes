@@ -272,6 +272,72 @@ entries short: what was asked, what was accepted/rejected, and why.
   the full pipeline.
 - 38 tests pass; ruff clean.
 
+## 2026-07-22 (cont.) — Map quality, gallery whitespace, moveout check (Claude, Opus 4.8)
+- Added `thunderquakes.plotting`: shared print-style rcParams (>=10pt floor) and
+  `gray_relief_background()` -- PyGMT-rendered pure hillshade (not elevation-
+  colored) through a manual near-white 2-stop CPT so texture never competes with
+  data markers, plus coastline/state-border overlay (`fig.coast`), on a linear
+  (Cartesian) PyGMT projection so it aligns pixel-for-pixel with matplotlib's
+  plain lat/lon `imshow` (a Mercator projection would misalign at AK's latitude
+  span). PyGMT added as a pixi dependency; installed cleanly since GMT itself
+  was already present on the machine.
+- Map fixes across `build_inventory.py` / `survey_ok_close_strikes.py`, all from
+  user feedback on the rendered maps:
+  - **Equal physical aspect** via `ax.set_aspect(1/cos(mean_lat))` -- naive
+    equal-degree axes visibly squeezed Alaska (20 deg of latitude vs 40 deg of
+    longitude at high latitude, where a longitude degree is much shorter).
+  - **Legend moved below the plot** (was overlapping/hiding markers in the
+    upper-right corner).
+  - **"since <year>" annotation**: `first_year_at_least()` finds the first
+    calendar year >=10 stations of a category were simultaneously active, using
+    real archived-data extent (data_start/data_end) over nominal metadata epoch
+    -- unit-tested.
+  - **Padding beyond the nominal bbox** to the union with actual station
+    coordinates, so markers at/near the region boundary are never half-clipped.
+  - **Close-strike survey map now also overlays station markers** (triangle
+    seismic / star seismoacoustic, same color scale as strike count) on user
+    request, not just the strike-count heatmap.
+- **Removed all on-figure titles/suptitles** across every plotting script (user
+  request): descriptive framing moved to Quarto figure captions + `fig-alt=`
+  instead, avoiding the overlap/clipping several titles were causing at print
+  width. Per-panel identifying labels in galleries (station/time/xcorr) were
+  kept since they're necessary data labels, not decorative headlines.
+- **Gallery whitespace fix**: `plot_waveforms.py` / `extract_ok_thunder_
+  candidates.py` / `verify_seismoacoustic_candidates.py` now use `sharex="col"`
+  (all panels share the same fixed time window) and link spectrogram y-axes via
+  `ax.sharey()` (same frequency band everywhere), so tick labels/axis labels are
+  only drawn once per row/column instead of repeated on every panel. Abbreviated
+  "Frequency"->"Freq", "Amplitude"->"Amp" per user request. Fixed one real
+  overlap bug this surfaced: long per-panel titles bled into the neighbouring
+  column at 2-column width; reordered/shortened the title text.
+- **New: seismoacoustic moveout check** (`scripts/plot_seismoacoustic_moveout.py`,
+  prompted by user asking for concrete propagation verification). Computes the
+  predicted acoustic travel time (distance/340 m/s) for every OK candidate with
+  a fetched seismic+infrasound pair and compares it to the observed envelope
+  lag, plus two raw-waveform (not envelope) record-section examples time-aligned
+  to the predicted arrival.
+  - **Result complicates the earlier "13% strong coupling" finding**: median
+    absolute deviation from the predicted line is 9.5 s, and the scatter is wide
+    -- coupling strength does not cleanly track distance the way a real
+    propagating wave should.
+  - User asked directly whether this could be wind/anthropogenic-noise
+    contamination rather than genuine acoustic coupling -- a real, currently
+    unaddressed gap. A single whole-window cross-correlation cannot distinguish
+    a real time-localized thunderclap from diffuse common-mode noise (wind can
+    excite both a seismometer and a co-located microbarometer simultaneously,
+    with no distance-dependent moveout). Documented as an explicit prerequisite
+    (report §4.6, follow-up #1) before any "strong coupling" event is trusted as
+    a gold-standard label: sliding-window (localized) cross-correlation and
+    spectral-profile matching against the WS1 thunder signature are the two
+    concrete next checks, neither yet implemented.
+- Rewrote the report (`report/manuscript.qmd`) with richer captions/alt-text for
+  all 17 figures (up from the earlier draft) reflecting the no-titles convention,
+  the new moveout section, and the wind-contamination caveat as an explicit
+  limitation and top-priority follow-up item.
+- 45 tests pass (+4 for `thunderquakes.plotting`, +3 for `first_year_at_least`);
+  ruff clean. Report renders cleanly; all 17 figure references verified against
+  disk.
+
 ## Template
 ### YYYY-MM-DD — <topic> (<model>)
 - Prompt/intent:
