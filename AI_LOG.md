@@ -135,6 +135,35 @@ entries short: what was asked, what was accepted/rejected, and why.
 - Verification: 31 tests pass (dataset/augment/cnn all covered where feasible
   without GPU), ruff clean across src/tests/scripts.
 
+## 2026-07-22 — WS4 #11 scaled-up OK generalization test (Claude, Opus 4.8)
+- Scaled the single-station pilot to `scripts/detect_ok_thunderquakes_batch.py`:
+  5 geographically-spread OK stations (CROK, FNO, NOKA, N4.T35B, RLOK), one
+  6-hour window (2019-05-20 20:00-2019-05-21 02:00 UTC, the validated outbreak
+  day), GLM strikes fetched ONCE and reused across all stations (station-
+  independent). Pools candidate-vs-null match counts and runs a two-proportion
+  z-test — the honest way to interpret a match rate against a catalog with
+  ~1 flash every 0.23s statewide.
+- **Found and fixed a real bug while scaling up:** the GLM S3 *listing* call
+  had no retry (only individual granule reads did), so one transient connection
+  reset during a ~1000+-granule fetch crashed the whole run. Added a shared
+  retry-with-backoff helper in `lightning/glm.py` around both listing and reads.
+- Extracted `two_proportion_ztest` into `evaluation/stats.py` (torch-free) so it
+  is unit-testable from the default env; the batch script imports it.
+- **Result (pooled, n=76 candidates across 3 active stations):** candidate match
+  rate 54% vs null baseline 42%, z=1.46, p=0.072 — suggestive but short of
+  conventional significance. Direction is consistent everywhere there were
+  candidates (CROK, NOKA, N4.T35B all candidate-rate >= null-rate; no station
+  went the other way), which is itself informative — a pure-noise result would
+  scatter both directions. FNO and RLOK had ZERO candidates in 6 hours (plausible:
+  the outbreak was concentrated further north/east; not yet independently
+  verified via local strike density near those two stations — flagged as a
+  follow-up, not asserted as fact).
+- This is a legitimate, appropriately-hedged first quantitative generalization
+  result, not a validated detector. Left issue #11 open with next steps: more
+  days, verify the zero-candidate stations, use high-confidence matches as
+  auto-label candidates for an actual OK-labeled training set.
+- 34 tests pass; ruff clean.
+
 ## Template
 ### YYYY-MM-DD — <topic> (<model>)
 - Prompt/intent:

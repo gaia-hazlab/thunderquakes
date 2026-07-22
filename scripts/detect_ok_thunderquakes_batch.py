@@ -31,11 +31,10 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import torch  # noqa: E402
-from scipy.stats import norm  # noqa: E402
 
 from thunderquakes.config import REGIONS, REPO_ROOT  # noqa: E402
 from thunderquakes.data import cached_waveform  # noqa: E402
-from thunderquakes.evaluation import match_detections_to_strikes  # noqa: E402
+from thunderquakes.evaluation import match_detections_to_strikes, two_proportion_ztest  # noqa: E402
 from thunderquakes.lightning import load_glm_strikes  # noqa: E402
 from thunderquakes.models.cnn import build_seismic_cnn  # noqa: E402
 from thunderquakes.models.dataset import WindowConfig, log_spectrogram_image  # noqa: E402
@@ -48,19 +47,6 @@ DEFAULT_STATIONS = [  # (network, station) — spread across the state's longitu
     ("N4", "T35B"),  # northeast, seismoacoustic site (BDF co-located)
     ("OK", "RLOK"),  # east
 ]
-
-
-def two_proportion_ztest(k1, n1, k2, n2):
-    """Two-proportion z-test; returns (z, p_one_sided) for p1 > p2."""
-    if n1 == 0 or n2 == 0:
-        return float("nan"), float("nan")
-    p1, p2 = k1 / n1, k2 / n2
-    p_pool = (k1 + k2) / (n1 + n2)
-    se = np.sqrt(p_pool * (1 - p_pool) * (1 / n1 + 1 / n2))
-    if se == 0:
-        return float("nan"), float("nan")
-    z = (p1 - p2) / se
-    return float(z), float(1 - norm.cdf(z))
 
 
 def sliding_windows(data, n_samples, stride_samples):
