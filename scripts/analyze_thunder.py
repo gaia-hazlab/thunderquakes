@@ -104,14 +104,15 @@ def main() -> int:
         axes[0].axvline(p, ls="--", lw=1, color="crimson")
         axes[0].text(p, axes[0].get_ylim()[1] * 0.9, f"{lab}={p:.0f}s", fontsize=8, rotation=90)
     axes[0].axvspan(0, 50, alpha=0.08, color="green")
-    axes[0].set(xlabel="Episode span above 3×noise (s)", ylabel="# traces",
+    axes[0].set(xlabel="Episode span above 3x noise floor (s)", ylabel="Number of traces",
                 title=f"Thunderquake episode duration (n={len(spans)})\n"
                       "green = proposed 50 s window; claps recur across the span")
     for name, data, fs, span in examples:
         t = np.arange(len(data)) / fs
         e = smooth_env(data, fs)
         axes[1].plot(t, e / e.max(), lw=0.8, label=f"{name} (span {span:.0f}s)")
-    axes[1].set(xlabel="Time in 150 s window (s)", ylabel="Norm. envelope",
+    axes[1].set(xlabel="Time in 150 s window (s)",
+                ylabel="Normalized envelope amplitude (peak = 1, dimensionless)",
                 title="Example thunder envelopes (multi-clap episodes)", xlim=(0, 150))
     axes[1].legend(fontsize=8)
     fig.tight_layout()
@@ -146,12 +147,13 @@ def main() -> int:
     axes[0].scatter(hi["lag_s"], hi["xcorr"], s=30, c="crimson",
                     label=f"xcorr≥0.5 (n={len(hi)})")
     axes[0].axhline(0.5, ls=":", c="k", lw=0.8)
-    axes[0].set(xlabel="Envelope lag: infrasound − seismic (s)", ylabel="Peak cross-correlation",
+    axes[0].set(xlabel="Envelope lag: infrasound minus seismic (s)",
+                ylabel="Peak cross-correlation coefficient (dimensionless, -1 to 1)",
                 title="Seismo-acoustic coupling at thunder stations\n(CC.CPCO/KWBU/SVIC)")
     axes[0].legend(fontsize=8)
     axes[1].hist(sa["lag_s"], bins=25, color="teal", edgecolor="white")
     axes[1].axvline(0, color="crimson", ls="--", lw=1)
-    axes[1].set(xlabel="Envelope lag infrasound − seismic (s)", ylabel="# events",
+    axes[1].set(xlabel="Envelope lag: infrasound minus seismic (s)", ylabel="Number of events",
                 title=f"Lag distribution (median {sa['lag_s'].median():+.1f}s)")
     fig.tight_layout()
     fig.savefig(fig_dir / "pnwml_thunder_seismoacoustic.png", dpi=150)

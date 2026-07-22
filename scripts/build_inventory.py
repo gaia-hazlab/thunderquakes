@@ -56,7 +56,7 @@ def plot_map(summary, region: str, out_path: Path) -> None:
             ax.annotate(f"{r.network}.{r.station}", (r.longitude, r.latitude),
                         fontsize=5, color="darkred", xytext=(2, 2), textcoords="offset points")
     ax.set(
-        xlabel="Longitude", ylabel="Latitude", xlim=(lon0, lon1), ylim=(lat0, lat1),
+        xlabel="Longitude (°E)", ylabel="Latitude (°N)", xlim=(lon0, lon1), ylim=(lat0, lat1),
         title=f"{region} station coverage — seismic + infrasound (WS2)\n"
         f"fdsnws: {', '.join(spec['seismic_networks'])}"
         + (f"   |   PH5: {', '.join(spec['ph5_networks'])}" if spec.get("ph5_networks") else ""),

@@ -86,10 +86,10 @@ def main() -> int:
         for j in range(len(classes)):
             ax.text(j, i, cm[i, j], ha="center",
                     color="white" if cm[i, j] > cm.max() / 2 else "black")
-    ax.set(xlabel="predicted", ylabel="true",
+    ax.set(xlabel="Predicted class", ylabel="True class",
            title=f"Model A ({best_label}, BlurPool + aug)\n"
                  f"{args.region} station-disjoint  thunder PR-AUC={best_ap:.2f}")
-    fig.colorbar(im, fraction=0.046)
+    fig.colorbar(im, fraction=0.046, label="Number of test-set windows")
     fig.tight_layout()
     fig.savefig(fig_dir / f"cnn_confusion_{args.region}.png", dpi=150)
 

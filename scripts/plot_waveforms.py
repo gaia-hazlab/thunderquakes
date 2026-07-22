@@ -71,7 +71,8 @@ def main() -> int:
             aw.plot(t, w, lw=0.4, color="steelblue")
             m = ds.meta.iloc[i]
             aw.set_title(f"{m.network}.{m.station}\n{m.time[:16]}", fontsize=7)
-            aw.set_xticks([])
+            aw.set_xlabel("Time (s)", fontsize=6)
+            aw.set_ylabel("Amplitude (counts)", fontsize=6)
             aw.tick_params(labelsize=6)
             asp = axes[r * 2 + 1][c]
             f, tt, sxx = _spec(w, fs=cfg.fs, nperseg=cfg.nperseg, noverlap=cfg.noverlap)
@@ -79,9 +80,9 @@ def main() -> int:
             asp.pcolormesh(tt, f[band], 10 * np.log10(sxx[band] + 1e-12),
                            shading="gouraud", cmap="inferno")
             asp.set_ylim(cfg.band)
+            asp.set_xlabel("Time (s)", fontsize=6)
+            asp.set_ylabel("Frequency (Hz)", fontsize=6)
             asp.tick_params(labelsize=6)
-            if c == 0:
-                asp.set_ylabel("Hz", fontsize=7)
         # blank any unused axes
         for k in range(len(idx), nrow * ncol):
             r, c = divmod(k, ncol)

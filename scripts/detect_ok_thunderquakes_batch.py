@@ -177,8 +177,8 @@ def main() -> int:
     ax.bar(x - w / 2, cand_rates, w, label="candidate (model-flagged)", color="crimson")
     ax.bar(x + w / 2, null_rates, w, label="null (random windows)", color="0.6")
     ax.set_xticks(x, labels, rotation=20, ha="right")
-    ax.set(ylabel="Match rate vs GLM strike", ylim=(0, 1),
-           title=f"OK synchronous-lightning detection — candidate vs null match rate\n"
+    ax.set(xlabel="Station", ylabel="Match rate vs. GLM strike (fraction, 0-1)", ylim=(0, 1),
+           title="OK synchronous-lightning detection — candidate vs null match rate\n"
                  f"radius={args.match_radius_km:.0f} km, window=±{args.match_window_s:.0f}s  "
                  f"(pooled z={z:.2f}, p={p:.3f})")
     ax.legend(fontsize=9)

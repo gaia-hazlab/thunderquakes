@@ -105,7 +105,7 @@ def main() -> int:
                     c=stations[f"n_strikes_within_{max_r:g}km"], cmap="inferno_r",
                     edgecolors="k", linewidths=0.3)
     fig.colorbar(sc, label=f"# strikes within {max_r:g} km")
-    ax.set(xlabel="Longitude", ylabel="Latitude", xlim=(lon0, lon1), ylim=(lat0, lat1),
+    ax.set(xlabel="Longitude (°E)", ylabel="Latitude (°N)", xlim=(lon0, lon1), ylim=(lat0, lat1),
           title=f"{args.region} close-strike survey (independent of model)\n"
                 f"{t0:%Y-%m-%d %H:%M} → {t1:%H:%M} UTC, radius {max_r:g} km")
     fig.tight_layout()

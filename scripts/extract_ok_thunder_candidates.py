@@ -144,13 +144,16 @@ def main() -> int:
             aw.plot(t, data, lw=0.4, color="steelblue")
             aw.set_title(f"{ev.network}.{ev.station}  d={ev.min_dist_km*1000:.0f}m\n"
                         f"n_strikes={ev.n_strikes}  {str(ev.event_start)[:16]}", fontsize=6)
-            aw.set_xticks([])
+            aw.set_xlabel("Time (s)", fontsize=6)
+            aw.set_ylabel("Amplitude (counts)", fontsize=6)
             aw.tick_params(labelsize=6)
             asp = axes[r * 2 + 1][c]
             f, tt, sxx = _spec(data.astype(float), fs=fs, nperseg=128, noverlap=96)
             band = (f >= 1) & (f <= 45)
             asp.pcolormesh(tt, f[band], 10 * np.log10(sxx[band] + 1e-12),
                           shading="gouraud", cmap="inferno")
+            asp.set_xlabel("Time (s)", fontsize=6)
+            asp.set_ylabel("Frequency (Hz)", fontsize=6)
             asp.tick_params(labelsize=6)
         for k in range(len(fetched), nrow * ncol):
             r, c = divmod(k, ncol)

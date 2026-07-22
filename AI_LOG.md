@@ -239,6 +239,39 @@ entries short: what was asked, what was accepted/rejected, and why.
   infrasound cannot scale to most of the state given current station coverage.
 - 38 tests pass; ruff clean.
 
+## 2026-07-22 (cont.) — WS5 progress report + axis-label audit (Claude, Opus 4.8)
+- Wrote a full progress report (`report/manuscript.qmd`, Quarto) covering intro,
+  data, methods, results/QC, and follow-up work across WS0-WS4, embedding all
+  15 figures generated this session. Rendered successfully (`quarto render`);
+  every image reference verified to resolve to a real file on disk.
+- Mid-task: user asked that every plot have x/y axis labels with physical units.
+  Audited every plotting script and fixed gaps: station maps lacked degree units
+  ("Longitude"->"Longitude (°E)"); PNWML distribution boxplots used raw variable
+  names as labels instead of units ("kurtosis"->"Kurtosis (dimensionless)",
+  "duration_80pct_s"->"Duration containing 80% of energy (s)"); waveform/
+  spectrogram galleries (plot_waveforms.py, extract_ok_thunder_candidates.py,
+  verify_seismoacoustic_candidates.py) had titles but no axis labels at all on
+  the actual waveform/spectrogram subplots -- added "Time (s)" / "Amplitude
+  (counts)" / "Frequency (Hz)" throughout; detection scripts' P(thunder) and
+  match-rate axes clarified as explicit probabilities/fractions (0-1).
+- Regenerated all 15 figures. Cache-backed ones (PNWML characterization,
+  galleries) reproduced bit-for-bit identical numbers instantly. GLM-dependent
+  ones (close-strike map, single-station and batch detection) were refetched
+  and reproduced identical statistics (5,120/76 candidates, 40%/20%, 54%/42%
+  z=1.46 p=0.072, etc.) -- confirms the whole pipeline is deterministic.
+- **Caught and fixed a near-miss**: an attempt to regenerate the station maps
+  via `build_inventory.py --no-availability` (to skip the slow fdsnws-
+  availability query) actually re-ran the full FDSN station query and
+  overwrote `catalogs/stations_OK_summary.csv` / `stations_OK_infrasound.csv`,
+  stripping the committed `data_start`/`data_end`/`n_timespans` availability
+  columns before other regenerations could run. Caught via `git status` before
+  committing, reverted with `git checkout --`, and redid the map regeneration
+  the safe way: call `plot_map()` directly on the existing committed CSV, with
+  no FDSN query at all. A reminder that regenerating a committed derived
+  artifact should default to the narrowest operation that reproduces it, not
+  the full pipeline.
+- 38 tests pass; ruff clean.
+
 ## Template
 ### YYYY-MM-DD — <topic> (<model>)
 - Prompt/intent:

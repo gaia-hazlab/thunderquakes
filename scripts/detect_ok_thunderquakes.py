@@ -160,7 +160,7 @@ def main() -> int:
         ax.scatter(cand["time_utc"], cand["thunder_prob"], s=15, color="crimson", zorder=3,
                   label=f"candidates (n={len(cand)})")
     ax.axhline(0.5, color="0.6", ls=":", lw=1)
-    ax.set(ylabel="P(thunder)", ylim=(0, 1),
+    ax.set(xlabel="Time (UTC)", ylabel="P(thunder) (probability, 0-1)", ylim=(0, 1),
            title=f"{args.network}.{args.station} — Model A thunder probability vs GLM strike rate\n"
                  f"({t0:%Y-%m-%d %H:%M} → {t1:%H:%M} UTC)  [match radius "
                  f"{args.match_radius_km:.0f} km, window ±{args.match_window_s:.0f}s]")
@@ -172,7 +172,7 @@ def main() -> int:
         )
         centers = pd.to_datetime(edges[:-1], unit="ns", utc=True)
         ax2.bar(centers, counts, width=pd.Timedelta(seconds=28), color="orange", align="edge")
-    ax2.set(xlabel="Time (UTC)", ylabel="GLM flashes\n/ 30s (statewide)")
+    ax2.set(xlabel="Time (UTC)", ylabel="GLM flash count\nper 30 s (statewide)")
     fig.autofmt_xdate()
     fig.tight_layout()
     fig.savefig(fig_dir / f"ok_detection_{tag}.png", dpi=150)

@@ -106,14 +106,15 @@ def main() -> int:
             aw.plot(ts, smooth_env(seis, fs_s), lw=0.8, color="steelblue", label="seismic env")
             aw.set_title(f"{ev.network}.{ev.station}  xcorr={coef:.2f} lag={lag:+.1f}s\n"
                         f"d={ev.min_dist_km*1000:.0f}m  {str(ev.event_start)[:16]}", fontsize=6)
+            aw.set_xlabel("Time (s)", fontsize=6)
+            aw.set_ylabel("Seismic envelope\namplitude (counts)", fontsize=6)
             aw.tick_params(labelsize=6)
             ai = axes[r * 2 + 1][c]
             ai.plot(ti, smooth_env(infra_data, fs_i), lw=0.8, color="darkorange",
                    label="infrasound env")
+            ai.set_xlabel("Time (s)", fontsize=6)
+            ai.set_ylabel("Infrasound envelope\namplitude (counts)", fontsize=6)
             ai.tick_params(labelsize=6)
-            if c == 0:
-                aw.set_ylabel("seismic", fontsize=7)
-                ai.set_ylabel("infrasound", fontsize=7)
         for k in range(n, nrow * ncol):
             r, c = divmod(k, ncol)
             axes[r * 2][c].axis("off")

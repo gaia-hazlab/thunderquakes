@@ -149,15 +149,20 @@ def main() -> int:
     print(f"  fig -> {(fig_dir / 'pnwml_spectra.png').relative_to(REPO_ROOT)}")
 
     # --- Figure 2: feature distributions by class ---
-    panels = ["spectral_flatness", "duration_80pct_s", "spectral_centroid_hz", "kurtosis"]
+    panels = [
+        ("spectral_flatness", "Spectral flatness (dimensionless, 0-1)"),
+        ("duration_80pct_s", "Duration containing 80% of energy (s)"),
+        ("spectral_centroid_hz", "Spectral centroid (Hz)"),
+        ("kurtosis", "Kurtosis (dimensionless)"),
+    ]
     fig, axes = plt.subplots(2, 2, figsize=(12, 9))
-    for ax, feat in zip(axes.ravel(), panels, strict=True):
+    for ax, (feat, ylabel) in zip(axes.ravel(), panels, strict=True):
         data = [df.loc[df["source_type"] == cls, feat].dropna().values for cls in classes]
         bp = ax.boxplot(data, tick_labels=classes, showfliers=False, patch_artist=True)
         for patch, cls in zip(bp["boxes"], classes, strict=True):
             patch.set_facecolor(colors[cls])
             patch.set_alpha(0.6)
-        ax.set(title=feat, ylabel=feat)
+        ax.set(title=ylabel, xlabel="Class", ylabel=ylabel)
         ax.tick_params(axis="x", rotation=20)
         if feat == "spectral_centroid_hz":
             ax.axhspan(1, 20, alpha=0.05, color="k")
