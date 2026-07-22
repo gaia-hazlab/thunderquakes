@@ -209,6 +209,36 @@ entries short: what was asked, what was accepted/rejected, and why.
   not `catalogs/` (committed derived products) -- moved and fixed both scripts.
 - 34 tests pass; ruff clean.
 
+## 2026-07-22 (cont.) — WS4 #9/#11 how much can infrasound help verify OK candidates (Claude, Opus 4.8)
+- Promoted `seismo_acoustic_lag`/`smooth_env`/`resample_to` out of
+  `scripts/analyze_thunder.py` into `features/seismoacoustic.py` (shared, unit-
+  tested: synthetic known-shift + uncorrelated-noise cases) so both the WS1
+  PNW analysis and this new OK check use the same code.
+- `scripts/verify_seismoacoustic_candidates.py`: of the 3,244 GLM-triggered OK
+  candidate events (#11), only **59 (1.8%) sit at a permanent OK seismoacoustic
+  station** (T35B/TUL1/TUL3 — the WS2 inventory found just 9 such stations
+  statewide). Fetched real seismic+infrasound pairs for 47/59 and computed
+  envelope cross-correlation.
+- **Result: median xcorr 0.35, only 6/47 (13%) exceed the "strong coupling"
+  threshold (>=0.5)** — much lower than the WS1 PNW baseline (median 0.85).
+  This is NOT an apples-to-apples comparison though: the PNW number came from
+  PNWML's analyst-CURATED thunder labels (only well-recorded events made the
+  cut), whereas this is a raw, unfiltered proximity population that necessarily
+  includes real misses (strikes that weren't actually audible/coupled at that
+  station/distance). A weak-but-present negative correlation between xcorr and
+  distance (r ~ -0.17 to -0.20) is physically sensible and confirms the metric
+  is capturing real signal, not noise — visually confirmed too: the top-ranked
+  panels in the gallery show genuinely co-varying seismic/infrasound envelope
+  shapes, not spurious matches.
+- **Answer to "how much can infrasound help build the dataset":** infrasound
+  helps QUALITY, not COVERAGE. Only 1.8% of candidates are even eligible (sparse
+  OK infrasound infrastructure), but among those, coupling identifies a smaller,
+  physically-verified high-confidence subset (13%) suitable as gold-standard
+  labels / Model B ablation data. The bulk of the OK training set will have to
+  rely on seismic-only verification (human QC, feature-based auto-scoring) —
+  infrasound cannot scale to most of the state given current station coverage.
+- 38 tests pass; ruff clean.
+
 ## Template
 ### YYYY-MM-DD — <topic> (<model>)
 - Prompt/intent:

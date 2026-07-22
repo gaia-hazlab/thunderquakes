@@ -26,12 +26,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
-from scipy.ndimage import uniform_filter1d  # noqa: E402
-from scipy.signal import correlate, correlation_lags  # noqa: E402
 
 from thunderquakes.config import REPO_ROOT  # noqa: E402
 from thunderquakes.data import cached_waveform  # noqa: E402
-from thunderquakes.features.characterize import envelope  # noqa: E402
+from thunderquakes.features import seismo_acoustic_lag, smooth_env  # noqa: E402
 
 WINDOW_S = 150.0
 ONSET_S = 70.0  # PNWML exotic traces have the labelled onset at sample 7000 (70 s @ 100 Hz)
@@ -39,10 +37,6 @@ BAND = (1.0, 20.0)  # common band for seismic + infrasound comparison
 INFRA_STATIONS = {  # co-located seismoacoustic thunder stations (from WS2 PNW inventory)
     ("CC", "CPCO"), ("CC", "KWBU"), ("CC", "SVIC"),
 }
-
-
-def smooth_env(data, fs, win_s=1.0):
-    return uniform_filter1d(envelope(data), size=max(1, int(win_s * fs)))
 
 
 def episode_span(data, fs, k=3.0):
@@ -65,33 +59,6 @@ def episode_span(data, fs, k=3.0):
     span = (idx[-1] - idx[0]) / fs
     total = idx.size / fs
     return span, total
-
-
-def resample_to(x, fs_in, fs_out, n_out):
-    t_in = np.arange(len(x)) / fs_in
-    t_out = np.arange(n_out) / fs_out
-    return np.interp(t_out, t_in, x, left=0.0, right=0.0)
-
-
-def seismo_acoustic_lag(seis, fs_s, infra, fs_i, max_lag_s=30.0):
-    """Envelope cross-correlation lag (s, infra relative to seismic) and peak coeff.
-
-    Search is restricted to |lag| <= max_lag_s: a thunderquake's acoustic and
-    air-coupled seismic arrivals are near-simultaneous, so larger apparent lags
-    are spurious matches to unrelated bursts elsewhere in the window.
-    """
-    fs = 50.0
-    n = int(min(len(seis) / fs_s, len(infra) / fs_i) * fs)
-    es = resample_to(smooth_env(seis, fs_s), fs_s, fs, n)
-    ei = resample_to(smooth_env(infra, fs_i), fs_i, fs, n)
-    es = (es - es.mean()) / (es.std() + 1e-12)
-    ei = (ei - ei.mean()) / (ei.std() + 1e-12)
-    xc = correlate(ei, es, mode="full") / len(es)
-    lags = correlation_lags(len(ei), len(es), mode="full") / fs
-    win = np.abs(lags) <= max_lag_s
-    xc, lags = xc[win], lags[win]
-    j = int(np.argmax(xc))
-    return float(lags[j]), float(xc[j])
 
 
 def main() -> int:
