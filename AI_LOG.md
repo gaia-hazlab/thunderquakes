@@ -164,6 +164,51 @@ entries short: what was asked, what was accepted/rejected, and why.
   auto-label candidates for an actual OK-labeled training set.
 - 34 tests pass; ruff clean.
 
+## 2026-07-22 — WS4 #11 GLM-triggered extraction pipeline (Claude, Opus 4.8)
+- User steered away from self-labelling (training on the model's own flagged
+  windows risks reinforcing its existing thunder<->sonic-boom bias) toward
+  **GLM-triggered extraction**: pull seismic windows at times/stations where an
+  independent lightning strike landed very close, regardless of what the model
+  predicts, then human-verify before trusting as a label.
+- `scripts/survey_ok_close_strikes.py`: sized the opportunity FIRST, before
+  building the pipeline. For the single already-validated 2019-05-20 6-hour
+  storm window: 12,650 pairs within 5km, 48,151 within 10km, across up to
+  198/282 permanent OK stations. Several strikes landed within 50-170m of a
+  seismometer. This is model-independent (uses only GLM + station coordinates).
+- `scripts/extract_ok_thunder_candidates.py`: clusters raw (station,strike) pairs
+  into distinct time-gap-separated EVENTS (median 1 strike/event; a 90s gap
+  threshold matches the WS1 episode-duration finding), filters out the ~3.5%
+  tail with >100 strikes/cluster (a storm sitting continuously overhead is
+  sustained noise, not a discrete thunderclap episode like the PNWML labels),
+  fetches the real waveform independent of the model, and produces a
+  waveform+spectrogram gallery for human QC.
+- **Found and fixed a real methodological bug via the gallery**: window
+  centering used a fixed quarter-window offset, but GLM (optical) and the
+  coupled seismic arrival are NOT simultaneous -- the acoustic wave lags by
+  distance/340 m/s (up to ~29s at the 10km radius used). Far events were
+  landing near/past the window edge. Fixed by centering on the physically
+  expected arrival time instead of a fixed offset.
+- **Found a real data-availability limitation**: many small OK/GS local-network
+  stations return HTTP 204 (no data) for specific candidate times even within
+  their nominal deployment epoch -- consistent with the WS2 finding that
+  metadata epochs overstate real archived data. Professionally-run TA/N4
+  stations are far more reliable. Fetch success rate on a random candidate
+  sample was ~15% for this reason (not a code bug -- verified directly against
+  FDSN).
+- **Honest QC read (n=15 fetched, human-reviewed)**: roughly 5-6 events show
+  clean, discrete, broadband thunderclap-like bursts consistent with the WS1
+  characterization (OK.CROK@2229m is an excellent multi-clap example); several
+  are ambiguous/continuous, likely real misses (strike not audibly/seismically
+  coupled at that distance/station) rather than pipeline errors.
+- Sizing conclusion: **3,244 distinct candidate events from ONE storm** (10km
+  radius, deduplicated) -- more than enough raw material to build a real
+  OK-native training set once auto-scored/filtered further; this is a viable
+  path, not just a one-off proof of concept.
+- Corrected a repo-hygiene issue found in passing: the raw survey CSV (15MB,
+  fully regenerable from GLM+station coords) belongs in `outputs/` (gitignored),
+  not `catalogs/` (committed derived products) -- moved and fixed both scripts.
+- 34 tests pass; ruff clean.
+
 ## Template
 ### YYYY-MM-DD — <topic> (<model>)
 - Prompt/intent:
