@@ -119,26 +119,47 @@ def load_glm_strikes(
     sat = satellite or default_east_satellite(t_start)
     bucket = f"noaa-{sat}"
 
+    def _retry(fn, *args, retries=3, **kwargs):
+        """S3 listing/reads occasionally hit transient connection resets at scale;
+        retry with backoff rather than aborting the whole fetch."""
+        import time
+
+        for attempt in range(retries):
+            try:
+                return fn(*args, **kwargs)
+            except FileNotFoundError:
+                raise
+            except OSError:
+                if attempt == retries - 1:
+                    raise
+                time.sleep(2**attempt)
+
     fs = s3fs.S3FileSystem(anon=True)
     granules = []
     for prefix in _hour_prefixes(t_start, t_end, bucket):
         try:
-            for path in fs.ls(prefix):
-                gstart = _parse_granule_start(path.split("/")[-1])
-                if t_start <= gstart <= t_end:
-                    granules.append(path)
+            listing = _retry(fs.ls, prefix)
         except FileNotFoundError:
             continue
+        except OSError:
+            continue  # give up on this hour after retries; don't abort the whole fetch
+        for path in listing:
+            gstart = _parse_granule_start(path.split("/")[-1])
+            if t_start <= gstart <= t_end:
+                granules.append(path)
 
     def _read(path):
         try:
-            with fs.open(path) as f:
-                ds = xr.open_dataset(f, engine="h5netcdf")
-                out = _flashes_from_dataset(ds, bbox)
-                ds.close()
-                return out
+            def _open_and_extract():
+                with fs.open(path) as f:
+                    ds = xr.open_dataset(f, engine="h5netcdf")
+                    out = _flashes_from_dataset(ds, bbox)
+                    ds.close()
+                    return out
+
+            return _retry(_open_and_extract)
         except (OSError, ValueError, KeyError):
-            return None  # skip corrupt/empty granule
+            return None  # skip corrupt/empty/unreadable granule after retries
 
     if max_workers > 1:
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
