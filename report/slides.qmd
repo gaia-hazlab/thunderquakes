@@ -60,19 +60,26 @@ Thunder has the **highest spectral centroid** of the four PNWML classes (10.2 Hz
 
 ## Thunder vs. sonic boom — why they're hard to separate
 
+::: {layout-ncol=2}
+![Thunder (PNWML): impulsive, broadband, multi-burst.](../docs/figures/verify_PNW_thunder.png){height="330"}
+
+![Sonic boom (PNWML): visually near-identical — the confusion is physically real.](../docs/figures/verify_PNW_sonic_boom.png){height="330"}
+:::
+
 | | Thunder | Sonic boom |
 |---|---|---|
-| Source | Extended, tortuous lightning channel; multiple strokes | Compact object, coherent supersonic shock (bow + tail) |
-| Waveform | Rumbling/clapping train, several seconds+ | Clean, brief N-wave (unless a boom "carpet") |
-| **Moveout** | Point-source: lag scales with distance from **one** strike location | Moving-source: arrivals trace the aircraft's ground track / Mach cone, not a point |
-
-The moveout test — point-source vs. moving-source geometry — is the most robust discriminator when only waveform/envelope data is available.
+| Source | Tortuous channel, multiple strokes | Compact supersonic shock (bow + tail) |
+| **Moveout** | Point-source: lag scales with distance from **one** strike | Moving-source: arrivals trace the aircraft's Mach cone, not a point |
 
 ## Seismoacoustic coupling — the physical test
 
-Thunder should show seismic + infrasound envelopes correlating strongly at **near-zero lag**, since both channels are excited by the same passing acoustic front.
+Thunder should show seismic + infrasound envelopes correlating strongly at **near-zero lag** — but that lag should also **track strike-to-station distance at ~340 m/s** if it's a real propagating wave, not a coincidence.
 
-![PNW baseline: 8 of 9 co-located thunder events cluster near zero lag, coefficient 0.65-0.94.](../docs/figures/pnwml_thunder_seismoacoustic.png){height="450"}
+::: {layout-ncol=2}
+![PNW baseline: 8/9 co-located thunder events cluster near zero lag, coefficient 0.65-0.94.](../docs/figures/pnwml_thunder_seismoacoustic.png){height="330"}
+
+![OK moveout check: envelope lag vs. strike distance against the predicted 340 m/s line (dashed). Many points sit near zero lag regardless of distance — the open wind-contamination question.](../docs/figures/ok_seismoacoustic_moveout_evening.png){height="330"}
+:::
 
 ## The classifier (Model A)
 
