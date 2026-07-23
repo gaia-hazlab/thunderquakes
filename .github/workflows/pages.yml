@@ -39,6 +39,7 @@ jobs:
           mkdir -p site/report site/docs
           cp report/manuscript.html site/report/
           cp report/slides.html site/report/
+          cp report/slides.css site/report/
           [ -d report/manuscript_files ] && cp -r report/manuscript_files site/report/ || true
           [ -d report/slides_files ] && cp -r report/slides_files site/report/ || true
           cp -r docs/figures site/docs/figures

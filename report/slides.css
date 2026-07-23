@@ -1,0 +1,23 @@
+.reveal {
+  font-size: 30px;
+}
+
+.reveal h2 {
+  font-size: 1.15em;
+}
+
+.reveal table {
+  font-size: 0.7em;
+}
+
+.reveal img {
+  max-height: 62vh;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.reveal .slides section {
+  overflow: visible;
+}

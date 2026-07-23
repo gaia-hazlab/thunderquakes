@@ -9,7 +9,8 @@ format:
     slide-number: true
     footer: "gaia-hazlab/thunderquakes"
     transition: fade
-    smaller: false
+    smaller: true
+    css: slides.css
 execute:
   echo: false
   eval: false
@@ -99,7 +100,7 @@ Reran the identical pipeline on a genuinely **nighttime** slice of the same stor
 | OK.CROK alone | 53% vs 50% (no signal) | 21% vs 21% (no signal) |
 | Moveout median deviation | 9.5 s | 16.4 s (worse) |
 
-**Two results point opposite directions** — reported honestly, not cherry-picked.
+**Two results point opposite directions** — reported honestly, not cherry-picked: the classifier itself looks *more* trustworthy at night, while the raw seismic-infrasound coupling metric looks *no more* (arguably less) trustworthy, so "night is cleaner" is true for one signal and not the other.
 
 ## Net assessment
 
