@@ -21,7 +21,9 @@ wandb/
 # report build
 report/*_files/
 report/*.html
+!report/index.html
 report/*.pdf
+report/.gitignore
 
 # env
 .env
