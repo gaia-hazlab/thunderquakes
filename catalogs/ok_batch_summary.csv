@@ -1,6 +1,6 @@
 network,station,n_windows,n_candidates,k_candidate_matched,n_null,k_null_matched
-OK,CROK,863,32,17,32,16
-OK,FNO,863,0,0,0,0
-OK,NOKA,863,3,2,3,0
-N4,T35B,863,41,22,41,16
-OK,RLOK,863,0,0,0,0
+OK,CROK,863,24,5,24,5
+OK,FNO,863,4,2,4,1
+OK,NOKA,863,10,7,10,1
+N4,T35B,863,84,26,84,8
+OK,RLOK,863,1,0,1,0

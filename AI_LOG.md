@@ -338,6 +338,64 @@ entries short: what was asked, what was accepted/rejected, and why.
   ruff clean. Report renders cleanly; all 17 figure references verified against
   disk.
 
+## 2026-07-23 — Nighttime rerun to test the wind-contamination hypothesis (Claude, Opus 4.8)
+- **Prompt/intent:** the prior "evening" window (2019-05-20 20:00-02:00 UTC =
+  15:00-21:00 CDT) was still afternoon/early-evening by local clock — not a real
+  test of whether daytime cultural/traffic noise explains the near-zero-lag
+  seismoacoustic scatter flagged as the top follow-up item. User asked to select
+  a genuinely nighttime slice of the same storm and redo the full pipeline.
+- Selected **2019-05-21 04:00-10:00 UTC (23:00-05:00 CDT)** — confirmed still
+  actively electrified overnight (17,985 GLM flashes in one representative hour)
+  with a comparable close-strike yield to the evening window (6,064/24,746/
+  101,416 pairs within 5/10/20 km vs. evening's 12,650/48,151/188,883). Backed up
+  all 10 evening-window output artifacts with an `_evening` suffix before rerunning
+  survey -> extraction -> seismoacoustic verification -> moveout -> single-station
+  detect -> 5-station batch detect on the nighttime window.
+- **Found and fixed a real bug while rerunning `detect_ok_thunderquakes_batch.py`:**
+  three consecutive runs crashed on what looked like transient GLM S3 network
+  errors, but the actual traceback showed `s3fs`'s own timeout-retry path has a
+  bug — on `FSTimeoutError`/`EndpointConnectionError` it inspects `ex.args[0]` to
+  decide whether to suppress the error, but those exceptions carry no `.args`, so
+  the check itself raises `IndexError` instead of the `OSError` our retry wrapper
+  expected. Fixed in `src/thunderquakes/lightning/glm.py` by broadening the caught
+  exception set (`S3_TRANSIENT_ERRORS = (OSError, IndexError)`) in both `_retry`
+  and the granule-read fallback, so a single flaky granule is skipped/retried
+  instead of aborting the whole fetch. Ruff clean; no unit test exists for this
+  path (it requires live S3 flakiness to trigger), so verification was
+  observational — the rerun completed cleanly afterward.
+- **Result — mixed, and reported honestly rather than cherry-picked** (full
+  numbers and station breakdown in report §4.7):
+  - The CNN classifier's pooled candidate-vs-null discrimination got much
+    *stronger* at night: p=0.072 (evening, z=1.46, 54% vs 42%, n=76) ->
+    **p=0.0001** (night, z=3.83, 33% vs 12%, n=123), driven mainly by OK.FNO
+    (0 candidates evening -> 50% vs 25% match rate at night) and OK.NOKA growing
+    from n=3 to n=10 while staying strong (67%->70% vs 0%->10% null). OK.CROK is
+    the one station with **zero discrimination in both windows** (53%/50% evening,
+    21%/21% night) — flagged as likely a station-specific (site/noise-floor) issue
+    rather than a day/night artifact, new follow-up item.
+  - The seismoacoustic **moveout fit did not improve at night — it got worse**
+    (median deviation from the 340 m/s line: 9.5 s evening, n=47 -> 16.4 s night,
+    n=28), and the near-zero-lag population spanning the full distance range
+    (the signature consistent with common-mode/wind contamination) persisted, with
+    median |lag| actually *dropping* from 2.0 s to 0.3 s. This argues *against*
+    daytime cultural noise as the main contaminant and *toward* wind or another
+    always-present source — it sharpens rather than resolves the open question
+    from the previous entry.
+  - Net: strengthens confidence the classifier is tracking a real lightning-
+    coincident signal; weakens the case that the raw seismic-infrasound
+    cross-correlation metric specifically reflects genuine acoustic propagation.
+    Follow-up #1 (sliding-window localized cross-correlation + spectral-profile
+    check) is now the clear next step, specifically targeted at the near-zero-lag
+    population's spectral signature (wind: low-frequency/non-impulsive vs.
+    thunder: ~10 Hz, high flatness, per §4.1).
+- Added report §4.7 "Night vs. evening: does less anthropogenic noise sharpen the
+  signal?" with the full comparison table and both moveout-scatter figures
+  side-by-side-referenced; updated the Follow-Up Work list (new items on
+  investigating OK.CROK specifically, and partial resolution of the FNO/RLOK
+  zero-candidate question — FNO now has candidates at night, RLOK still has none
+  in either window, suggesting genuinely low local strike density there).
+- Report renders cleanly (`quarto render manuscript.qmd`, `report/` dir).
+
 ## Template
 ### YYYY-MM-DD — <topic> (<model>)
 - Prompt/intent:

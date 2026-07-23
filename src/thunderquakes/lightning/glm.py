@@ -119,6 +119,14 @@ def load_glm_strikes(
     sat = satellite or default_east_satellite(t_start)
     bucket = f"noaa-{sat}"
 
+    # s3fs's own timeout-retry path has a known bug: on a read/connect timeout
+    # (FSTimeoutError, EndpointConnectionError) it inspects ex.args[0] to decide
+    # whether to suppress the error, but those exceptions carry no .args, so the
+    # check itself raises IndexError instead of the OSError callers expect. Treat
+    # that IndexError the same as a transient OSError so a single flaky granule
+    # doesn't abort the whole fetch.
+    S3_TRANSIENT_ERRORS = (OSError, IndexError)
+
     def _retry(fn, *args, retries=3, **kwargs):
         """S3 listing/reads occasionally hit transient connection resets at scale;
         retry with backoff rather than aborting the whole fetch."""
@@ -129,7 +137,7 @@ def load_glm_strikes(
                 return fn(*args, **kwargs)
             except FileNotFoundError:
                 raise
-            except OSError:
+            except S3_TRANSIENT_ERRORS:
                 if attempt == retries - 1:
                     raise
                 time.sleep(2**attempt)
@@ -141,7 +149,7 @@ def load_glm_strikes(
             listing = _retry(fs.ls, prefix)
         except FileNotFoundError:
             continue
-        except OSError:
+        except S3_TRANSIENT_ERRORS:
             continue  # give up on this hour after retries; don't abort the whole fetch
         for path in listing:
             gstart = _parse_granule_start(path.split("/")[-1])
@@ -158,7 +166,7 @@ def load_glm_strikes(
                     return out
 
             return _retry(_open_and_extract)
-        except (OSError, ValueError, KeyError):
+        except (*S3_TRANSIENT_ERRORS, ValueError, KeyError):
             return None  # skip corrupt/empty/unreadable granule after retries
 
     if max_workers > 1:
