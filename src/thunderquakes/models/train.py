@@ -9,6 +9,7 @@ choice under class imbalance.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 
 import numpy as np
@@ -38,6 +39,32 @@ def station_split_idx(ds, test_frac: float = 0.3, seed: int = 0) -> SplitIdx:
 def _loader(X, y, batch=32, shuffle=False):
     return DataLoader(TensorDataset(torch.from_numpy(X), torch.from_numpy(y)),
                       batch_size=batch, shuffle=shuffle)
+
+
+def benchmark_inference(model, X: np.ndarray, device: str, batch_size: int = 1,
+                        n_repeats: int = 3) -> dict:
+    """Wall-clock inference throughput at a realistic streaming batch size.
+
+    Continuous deployment scores one sliding window at a time (batch_size=1 by
+    default here), which is much slower per-window than one large batched forward
+    pass over the whole test set -- report this, not the training-loop batch
+    timing, as the number that should inform a deployment cost estimate.
+    """
+    model.eval()
+    Xt = torch.from_numpy(X).to(device)
+    n = len(Xt)
+    with torch.no_grad():
+        model(Xt[:min(batch_size, n)])  # warm-up (lazy CUDA init, cudnn autotune)
+        times = []
+        for _ in range(n_repeats):
+            start = time.perf_counter()
+            for i in range(0, n, batch_size):
+                model(Xt[i:i + batch_size])
+            times.append(time.perf_counter() - start)
+    best = min(times)
+    return {"batch_size": batch_size, "n_windows": n, "device": device,
+            "seconds_total": best, "seconds_per_window": best / n,
+            "windows_per_second": n / best}
 
 
 def train(
@@ -76,23 +103,45 @@ def train(
     opt = torch.optim.Adam(model.parameters(), lr=lr)
     crit = nn.CrossEntropyLoss(weight=weights)
 
+    Xte_t = torch.from_numpy(Xte).to(device)
+    yte_t = torch.from_numpy(yte).to(device)
+    n_params = sum(p.numel() for p in model.parameters())
+
     tr_loader = _loader(Xtr, ytr, batch, shuffle=True)
+    history = []
+    train_start = time.perf_counter()
     for ep in range(epochs):
         model.train()
-        tot = 0.0
+        tot, correct = 0.0, 0
         for xb, yb in tr_loader:
             xb, yb = xb.to(device), yb.to(device)
             opt.zero_grad()
-            loss = crit(model(xb), yb)
+            out = model(xb)
+            loss = crit(out, yb)
             loss.backward()
             opt.step()
             tot += loss.item() * len(xb)
+            correct += (out.argmax(1) == yb).sum().item()
+        train_loss = tot / len(ytr)
+        train_acc = correct / len(ytr)
+
+        model.eval()
+        with torch.no_grad():
+            te_out = model(Xte_t)
+            test_loss = crit(te_out, yte_t).item()
+            test_acc = (te_out.argmax(1) == yte_t).float().mean().item()
+        history.append({"epoch": ep, "train_loss": train_loss, "train_acc": train_acc,
+                        "test_loss": test_loss, "test_acc": test_acc})
         if verbose and (ep % 10 == 0 or ep == epochs - 1):
-            print(f"    epoch {ep:3d}  train_loss={tot / len(ytr):.3f}")
+            print(f"    epoch {ep:3d}  train_loss={train_loss:.3f}  test_loss={test_loss:.3f}"
+                  f"  test_acc={test_acc:.3f}")
+    train_time_s = time.perf_counter() - train_start
 
     model.eval()
+    infer_start = time.perf_counter()
     with torch.no_grad():
-        probs = torch.softmax(model(torch.from_numpy(Xte).to(device)), dim=1).cpu().numpy()
+        probs = torch.softmax(model(Xte_t), dim=1).cpu().numpy()
+    infer_time_s = time.perf_counter() - infer_start
     pred = probs.argmax(1)
 
     report = classification_report(yte, pred, target_names=ds.classes,
@@ -100,10 +149,14 @@ def train(
     cm = confusion_matrix(yte, pred, labels=range(n_classes))
     metrics = {"classes": ds.classes, "report": report, "confusion": cm.tolist(),
                "n_train": int(len(ytr)), "n_test": int(len(yte)),
-               "width": width, "depth": depth, "n_aug": n_aug}
+               "width": width, "depth": depth, "n_aug": n_aug,
+               "n_params": int(n_params), "device": device,
+               "train_time_s": train_time_s, "epochs": epochs,
+               "infer_time_s_per_test_set": infer_time_s,
+               "infer_s_per_window": infer_time_s / max(len(yte), 1)}
     if "thunder" in ds.classes:
         ti = ds.classes.index("thunder")
         metrics["thunder_ap"] = float(
             average_precision_score((yte == ti).astype(int), probs[:, ti]))
     return {"model": model, "metrics": metrics, "probs": probs, "split": sp,
-            "y_test": yte, "pred": pred}
+            "y_test": yte, "pred": pred, "history": history, "X_test": Xte}

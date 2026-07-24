@@ -1,0 +1,20 @@
+{
+  "classes": [
+    "thunder",
+    "sonic boom",
+    "noise"
+  ],
+  "width": 64,
+  "depth": 3,
+  "in_ch": 1,
+  "cfg": {
+    "win_s": 50.0,
+    "fs": 100.0,
+    "band": [
+      1.0,
+      45.0
+    ],
+    "nperseg": 128,
+    "noverlap": 96
+  }
+}

@@ -23,7 +23,7 @@ import pandas as pd  # noqa: E402
 
 from thunderquakes.config import REPO_ROOT  # noqa: E402
 from thunderquakes.models.dataset import REGION_CLASSES, WindowConfig, build_windows  # noqa: E402
-from thunderquakes.models.train import train  # noqa: E402
+from thunderquakes.models.train import benchmark_inference, train  # noqa: E402
 from thunderquakes.plotting import set_paper_style  # noqa: E402
 
 set_paper_style()
@@ -60,24 +60,41 @@ def main() -> int:
     ds = build_windows(meta, classes, cfg=cfg, n_per_class=args.n_per_class, client=client)
     print(f"  W={ds.W.shape}  counts={np.bincount(ds.y).tolist()}")
 
+    cat_dir = REPO_ROOT / "catalogs"
+    cat_dir.mkdir(exist_ok=True)
+
     results = []
     for label, width, depth in ARCHS:
         print(f"\n=== {label} (width={width}, depth={depth}) + aug×{args.n_aug} ===")
         out = train(ds, cfg=cfg, epochs=args.epochs, width=width, depth=depth, n_aug=args.n_aug)
         ap_ = out["metrics"].get("thunder_ap", float("nan"))
         thr = out["metrics"]["report"]["thunder"]
-        print(f"  thunder PR-AUC={ap_:.3f}  P={thr['precision']:.2f} R={thr['recall']:.2f}")
+        t_s = out["metrics"]["train_time_s"]
+        print(f"  thunder PR-AUC={ap_:.3f}  P={thr['precision']:.2f} R={thr['recall']:.2f}"
+              f"  train_time={t_s:.1f}s  params={out['metrics']['n_params']:,}")
+        pd.DataFrame(out["history"]).to_csv(
+            cat_dir / f"cnn_training_history_{args.region}_{label}.csv", index=False)
         results.append((label, ap_, out))
 
     results.sort(key=lambda r: (np.nan_to_num(r[1])), reverse=True)
     best_label, best_ap, best = results[0]
     print(f"\nBEST: {best_label}  thunder PR-AUC={best_ap:.3f}")
 
+    # Realistic streaming-deployment inference throughput: one window at a time,
+    # not one big batched forward pass over the whole test set.
+    bench = benchmark_inference(best["model"], best["X_test"], best["metrics"]["device"],
+                                batch_size=1)
+    print(f"\nInference benchmark (batch_size=1, {bench['device']}): "
+          f"{bench['windows_per_second']:.1f} windows/s "
+          f"({bench['seconds_per_window'] * 1000:.2f} ms/window)")
+
     out_dir = REPO_ROOT / "outputs"
     fig_dir = REPO_ROOT / "docs" / "figures"
     out_dir.mkdir(exist_ok=True)
     summary = {lab: {"thunder_ap": ap_, **o["metrics"]} for lab, ap_, o in results}
+    summary["_best_model_inference_benchmark"] = bench
     (out_dir / f"cnn_arch_comparison_{args.region}.json").write_text(json.dumps(summary, indent=2))
+    (cat_dir / f"cnn_arch_comparison_{args.region}.json").write_text(json.dumps(summary, indent=2))
 
     m = best["metrics"]
     cm = np.array(m["confusion"])

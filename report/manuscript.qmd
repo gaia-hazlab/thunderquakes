@@ -109,7 +109,9 @@ A 2D CNN over log-spectrograms of the 50 s windows, with three deliberate design
 - **Architecture width vs. depth**: a short-and-fat configuration (64 channels, 3 blocks) was compared against a long-and-skinny one (16 channels, 5 blocks) and a baseline (32 channels, 3 blocks). Short-fat won on both PNW and OK-targeted training.
 - **Training-only augmentation** (`thunderquakes.models.augment`): amplitude scaling, polarity flip, white-noise dithering, and — most importantly — **real-noise injection sampled from the noise class in the training split only**, applied strictly after the station-disjoint train/test split to avoid leakage.
 
-Splits are **station-disjoint** (no station appears in both train and test), which is the honest precursor to a true cross-region generalization test, since random splits would let the model memorize station-specific characteristics.
+Splits are **station-disjoint** (no station appears in both train and test), which is the honest precursor to a true cross-region generalization test, since random splits would let the model memorize station-specific characteristics. **There is currently no separate validation split** — only train/test (`sklearn.model_selection.GroupShuffleSplit`, grouped on station, `test_frac=0.3`) — so model selection across the three architectures below uses the same test set the metrics are reported on; this is flagged explicitly as a limitation (§6) rather than glossed over, since it means the architecture choice itself has a small optimistic bias.
+
+Three architectures were trained and compared under identical data/augmentation (`scripts/train_cnn.py`): a baseline (32 channels, 3 blocks), the short-fat winner (64 channels, 3 blocks), and a long-skinny alternative (16 channels, 5 blocks, each block doubling channels up to a 256-channel cap). Training was instrumented to log per-epoch train/test loss and accuracy (`catalogs/cnn_training_history_OK_*.csv`) and wall-clock training time, and a separate realistic-streaming inference benchmark (`thunderquakes.models.train.benchmark_inference`) measures latency at the batch size continuous deployment would actually use (one window at a time), not the large single-batch timing a training loop would otherwise make look artificially fast.
 
 ## GLM-triggered candidate extraction (Oklahoma)
 
@@ -156,11 +158,73 @@ The thunder and sonic-boom galleries look visually similar — both are impulsiv
 
 ## CNN classifier performance
 
-A first baseline (no BlurPool, no augmentation, PNW 4-class) scored **thunder PR-AUC 0.61** against a 0.37 base rate, with confusion concentrated exactly where characterization predicted: thunder vs. surface-event and thunder vs. sonic-boom. After the hardening described in §3.3, an **OK-targeted 3-class model (thunder/sonic boom/noise) reached PR-AUC 0.73**, with thunder/noise separation now essentially perfect (zero cross-errors) and all remaining error concentrated in thunder↔sonic-boom.
+### Datasets and splits
+
+Two separate training runs underlie every model discussed in this report — an early **PNW 4-class baseline** (pre-BlurPool, pre-augmentation, kept as a frozen historical artifact since the current code no longer has a toggle to reproduce it) and the **OK-targeted 3-class architecture comparison** (post-hardening: BlurPool + augmentation). Both use a station-disjoint 70/30 train/test split (§3.3) with no separate validation set.
+
+| Run | Classes | n train | n test | Test-set class support |
+|---|---|---:|---:|---|
+| PNW baseline | thunder, sonic boom, surface event, noise | 319 | 277 | thunder 102, sonic boom 95, surface event 49, noise 31 |
+| OK-targeted (×3 architectures) | thunder, sonic boom, noise | 1,360 | 106 | thunder 22, sonic boom 38, noise 46 |
+
+The OK run's `n_train=1,360` is 340 raw station-disjoint training windows expanded ×4 by train-only augmentation (original + 3 augmented copies per window, §3.3); the raw PNWML class pool behind that 340 draws from the full metadata (**thunder 146, sonic boom 206, surface event 8,912**, plus 51,462 raw noise traces — `exotic_metadata.csv`/`noise_metadata.csv`, region-subsampled to `n_per_class=150` per §2.1's negative-class curation).
+
+### Architectures compared
+
+Three architectures were trained under identical data/augmentation to separate "does width vs. depth matter" from "did augmentation/BlurPool help":
+
+![Schematic of the three architectures compared: box width/label show channels per block (doubling each block up to a 256-channel cap); short-fat trades depth for width, long-skinny the reverse, at a similar total parameter count to each other but 4x the baseline.](../docs/figures/cnn_architectures.png){fig-alt="Three horizontal diagrams of box sequences representing CNN blocks: baseline goes 32 to 64 to 128 channels (93,507 parameters), short-fat goes 64 to 128 to 256 channels (371,331 parameters), long-skinny goes 16 to 32 to 64 to 128 to 256 channels across five blocks (394,083 parameters), each ending in an average-pool plus fully-connected head."}
+
+| Architecture | Width | Depth | Params | Thunder PR-AUC | Accuracy | Precision / Recall (thunder) |
+|---|---:|---:|---:|---:|---:|---|
+| `baseline_w32_d3` | 32 | 3 | 93,507 | 0.684 | 0.726 | 0.48 / 0.91 |
+| `short_fat_w64_d3` (**deployed**) | 64 | 3 | 371,331 | **0.732** | 0.783 | 0.68 / 0.59 |
+| `long_skinny_w16_d5` | 16 | 5 | 394,083 | 0.658 | 0.774 | 0.60 / 0.68 |
+
+Short-fat wins on the headline metric (thunder PR-AUC), but the **learning curves below show why long-skinny's raw numbers are less trustworthy than they look**: at a similar parameter count to short-fat, its extra depth lets train loss keep falling long after test loss has flattened — classic overfitting on this small a training set, not a genuinely better representation.
+
+![Per-architecture learning curves (station-disjoint test set, no separate validation split — "test" here is the same held-out set the leaderboard metrics come from). Long-skinny's train loss keeps dropping to ~0.3 while its test loss plateaus/rises after epoch ~20: overfitting, not improvement. Short-fat and baseline both show noisy but comparatively flatter test curves, consistent with the small test set (n=106) rather than a fundamentally different fit.](../docs/figures/cnn_learning_curves_OK.png){fig-alt="Two rows of three line-plot panels, one column per architecture: top row shows train and test cross-entropy loss vs epoch, bottom row shows train and test accuracy vs epoch. The long-skinny architecture's train loss keeps decreasing toward the end of training while its test loss stays flat or rises, unlike the other two architectures."}
+
+### Leaderboard
+
+A **majority-class baseline** (always predict the largest test-set class) is included for both runs — its accuracy is just the majority class's test-set prevalence, and its "thunder PR-AUC" is exactly the thunder class's prevalence (the average-precision score of any constant-output classifier equals the positive class's base rate), which is also the honest zero-information floor every trained model must beat.
+
+| Model | Test set | Accuracy | Thunder PR-AUC |
+|---|---|---:|---:|
+| Majority-class baseline | PNW 4-class (n=277) | 36.8% | 0.368 |
+| PNW baseline (no BlurPool, no aug) | PNW 4-class (n=277) | 46.2% | 0.608 |
+| Majority-class baseline | OK 3-class (n=106) | 43.4% | 0.208 |
+| `baseline_w32_d3` | OK 3-class (n=106) | 72.6% | 0.684 |
+| `long_skinny_w16_d5` | OK 3-class (n=106) | 77.4% | 0.658 |
+| **`short_fat_w64_d3` (deployed as Model A)** | OK 3-class (n=106) | **78.3%** | **0.732** |
+
+Every trained model clears its majority-class floor comfortably; the PNW baseline's improvement over its own floor (0.608 vs. 0.368) is smaller than the OK-targeted models' improvement over theirs (0.73 vs. 0.208) — consistent with BlurPool + augmentation (§3.3) doing real work, not just this being an easier 3-class problem.
 
 ![Confusion matrix for the OK-targeted model (short-fat BlurPool CNN + augmentation) on a station-disjoint test set: thunder PR-AUC 0.73, all misclassification is thunder<->sonic-boom, zero confusion with noise. (Figure predates the on-image-title removal convention adopted later in this project; will be regenerated on the next retrain.)](../docs/figures/cnn_confusion_OK.png){fig-alt="3x3 confusion matrix heatmap for thunder, sonic boom, and noise classes: 13 thunder correct, 9 thunder misclassified as sonic boom, 0 thunder-noise confusion, 43 noise correct."}
 
 **Caveat that applies to every result in this section**: this model has never seen a single confirmed Oklahoma thunderquake. It is a PNW model, curated to Oklahoma's expected class mix, evaluated so far only on PNW-network data.
+
+### Computational cost and continuous-deployment feasibility
+
+Training wall-clock time (single-process, CPU, this development machine — no GPU was used or required for a model this size) scaled with architecture as expected: `long_skinny_w16_d5` trained fastest (582 s) despite having the most parameters, because its narrower early layers do less work per pixel; `short_fat_w64_d3` (the deployed model) was the slowest to train (1,433 s ≈ 24 min) at 40 epochs on 1,360 augmented windows.
+
+| Architecture | Params | Train time (40 epochs) |
+|---|---:|---:|
+| `long_skinny_w16_d5` | 394,083 | 582 s (9.7 min) |
+| `baseline_w32_d3` | 93,507 | 832 s (13.9 min) |
+| `short_fat_w64_d3` (deployed) | 371,331 | 1,433 s (23.9 min) |
+
+**Inference** was benchmarked at the batch size continuous deployment would actually use — one 50 s window at a time, not one large batch — since a training-loop-style batched timing would understate real per-window latency: **27.0 ms/window (37 windows/s)** on CPU. Batching modestly helps (batch size 8: 11.4 ms/window, 87.8 windows/s — about a 2.4x speedup, not dramatic, since this workload is CPU-bound and each window is independent regardless of batch size).
+
+**What would continuous deployment cost?** The sliding-window continuous scan already used for the generalization test (`scripts/detect_ok_thunderquakes.py`) runs a 50 s window at a 25 s stride (50% overlap, `STRIDE_S`), giving 86,400 s/day ÷ 25 s = **3,456 windows/station/day**. Combined with the region's permanent seismic station count (the same "IRIS, deduplicated" count already used for the close-strike survey, §4.5):
+
+| Region | Permanent stations | Windows/day | Single-core, streaming (bs=1) | Single-core, batched (bs=8) | Batched, 8 cores |
+|---|---:|---:|---:|---:|---:|
+| OK | 282 | 974,592 | 7.3 h/day | 3.1 h/day | ~23 min/day |
+| PNW | 1,151 | 3,977,856 | **29.9 h/day** | 12.6 h/day | ~94 min/day |
+| AK | 763 | 2,636,928 | 19.8 h/day | 8.4 h/day | ~63 min/day |
+
+**This is the concrete case for WS6 issue #13 (rapid inference pipeline):** naive single-core streaming inference cannot keep up with a single day of PNW data in a day of compute — scoring PNW continuously would fall permanently behind without batching and/or parallelism across stations (an embarrassingly parallel workload, since windows are independent). Batching plus modest parallelism (8 cores) brings every region to well under two hours per day, which is the realistic operating point for a production pipeline, not the naive one.
 
 ## The Oklahoma generalization test
 
